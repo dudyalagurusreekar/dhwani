@@ -1,0 +1,317 @@
+@import "tailwindcss";
+
+/* ════════════════════════════════════════════════════
+   DHWANI ECHOSHIELD AI — Master Cybersecurity Token System
+   ════════════════════════════════════════════════════ */
+
+:root {
+  /* ── BACKGROUNDS ── */
+  --dhwani-bg:           #05020D;
+  --dhwani-bg-subtle:    #080312;
+  --dhwani-bg-elevated:  #0C0618;
+
+  /* ── SURFACES ── */
+  --dhwani-surface:      #100820;
+  --dhwani-card:         #160B29;
+  --dhwani-card-hover:   #1C0D32;
+
+  /* ── BRAND PURPLES & VIOLETS ── */
+  --dhwani-purple:       #8B5CFF;
+  --dhwani-purple-deep:  #7C3CFF;
+  --dhwani-neon-purple:  #A855F7;
+  --dhwani-accent-purple:#C084FC;
+  --dhwani-magenta:      #D946EF;
+
+  /* ── CYBER ACCENTS ── */
+  --dhwani-cyber:        #22D3EE;
+  --dhwani-cyan-bright:  #38BDF8;
+  --dhwani-deep-blue:    #0EA5E9;
+
+  /* ── STATUS ── */
+  --dhwani-success:      #22C55E;
+  --dhwani-warning:      #F59E0B;
+  --dhwani-danger:       #EF4444;
+
+  /* ── TEXT HIERARCHY ── */
+  --dhwani-text:         #F8F7FF;
+  --dhwani-text-muted:   #B8B0C9;
+  --dhwani-text-dim:     #777083;
+
+  /* ── COMPOSITE EFFECTS ── */
+  --dhwani-purple-gradient: linear-gradient(135deg, #8B5CFF 0%, #7C3CFF 100%);
+  --dhwani-cyber-gradient:  linear-gradient(135deg, #22D3EE 0%, #38BDF8 100%);
+  --dhwani-glow-purple:     0 0 45px -6px rgba(139, 92, 255, 0.45);
+  --dhwani-glow-cyan:       0 0 40px -8px rgba(34, 211, 238, 0.4);
+  --dhwani-glass:           rgba(20, 10, 40, 0.55);
+  --dhwani-border:          rgba(160, 100, 255, 0.18);
+
+  /* Legacy compatibility */
+  --background: var(--dhwani-bg);
+  --foreground: var(--dhwani-text);
+}
+
+/* Tailwind v4 theme inline */
+@theme inline {
+  --color-background:      var(--dhwani-bg);
+  --color-foreground:      var(--dhwani-text);
+  --color-dhwani-bg:       #05020D;
+  --color-dhwani-surface:  #100820;
+  --color-dhwani-card:     #160B29;
+  --color-dhwani-purple:   #8B5CFF;
+  --color-dhwani-accent:   #7C3CFF;
+  --color-dhwani-neon:     #A855F7;
+  --color-dhwani-cyber:    #22D3EE;
+  --color-dhwani-deep:     #0EA5E9;
+  --color-dhwani-text:     #F8F7FF;
+  --color-dhwani-muted:    #B8B0C9;
+}
+
+/* ════════════════════════════════════════════════════
+   BASE STYLES
+   ════════════════════════════════════════════════════ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--dhwani-bg);
+  color: var(--dhwani-text);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background-color: #7C3CFF;
+  color: #ffffff;
+}
+
+/* ════════════════════════════════════════════════════
+   PREMIUM GLASSMORPHISM SURFACES
+   ════════════════════════════════════════════════════ */
+
+.glass-panel {
+  background: var(--dhwani-glass);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--dhwani-border);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  border-radius: 20px;
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--dhwani-border);
+}
+
+.glass-card-premium {
+  background: rgba(20, 10, 40, 0.55);
+  border: 1px solid rgba(160, 100, 255, 0.18);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  border-radius: 20px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-premium:hover {
+  border-color: rgba(192, 132, 252, 0.35);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45), 0 0 30px rgba(139, 92, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+/* ════════════════════════════════════════════════════
+   GLOWS & HIGHLIGHTS
+   ════════════════════════════════════════════════════ */
+
+.glow-purple {
+  box-shadow: var(--dhwani-glow-purple);
+}
+
+.glow-cyan {
+  box-shadow: var(--dhwani-glow-cyan);
+}
+
+/* ════════════════════════════════════════════════════
+   TEXT GRADIENTS
+   ════════════════════════════════════════════════════ */
+
+.text-gradient-brand {
+  background: linear-gradient(135deg, #ffffff 40%, #A855F7 80%, #22D3EE 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-purple-cyan {
+  background: linear-gradient(135deg, #8B5CFF 0%, #22D3EE 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-purple-magenta {
+  background: linear-gradient(135deg, #F8F7FF 30%, #C084FC 70%, #D946EF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ════════════════════════════════════════════════════
+   ANIMATIONS & FLOAT KEYFRAMES
+   ════════════════════════════════════════════════════ */
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-7px); }
+}
+
+@keyframes floatDelayed {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(7px); }
+}
+
+.animate-float-slow {
+  animation: floatSlow 5s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: floatDelayed 6s ease-in-out infinite 1.5s;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50%      { opacity: 0.28; transform: scale(1.05); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 6s ease-in-out infinite;
+}
+
+/* ════════════════════════════════════════════════════
+   SCAN LINE ANIMATION (used by WaveformVisualizer)
+   ════════════════════════════════════════════════════ */
+
+@keyframes scan {
+  0%   { left: -2px; opacity: 0.7; }
+  50%  { opacity: 1; }
+  100% { left: calc(100% + 2px); opacity: 0.7; }
+}
+
+.animate-scan {
+  animation: scan 2.8s linear infinite;
+}
+
+/* ════════════════════════════════════════════════════
+   SCROLL-TRIGGERED ENTRANCE ANIMATIONS
+   ════════════════════════════════════════════════════ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Default state: hidden (applied via JS IntersectionObserver) */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-24px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-left.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.reveal-right {
+  opacity: 0;
+  transform: translateX(24px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-right.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Stagger delay helpers */
+.delay-100 { transition-delay: 100ms; }
+.delay-200 { transition-delay: 200ms; }
+.delay-300 { transition-delay: 300ms; }
+.delay-400 { transition-delay: 400ms; }
+.delay-500 { transition-delay: 500ms; }
+
+/* ════════════════════════════════════════════════════
+   NOISE TEXTURE OVERLAY (subtle grain for depth)
+   ════════════════════════════════════════════════════ */
+
+.noise-overlay::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+
+/* ════════════════════════════════════════════════════
+   SCROLLBAR
+   ════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: var(--dhwani-bg); }
+::-webkit-scrollbar-thumb { background: #1C0D32; border-radius: 6px; border: 1px solid rgba(160, 100, 255, 0.1); }
+::-webkit-scrollbar-thumb:hover { background: #2A1048; }
