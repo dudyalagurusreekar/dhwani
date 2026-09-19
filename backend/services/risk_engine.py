@@ -90,6 +90,7 @@ def calculate_risk(
     return {
         "risk_score": score,
         "status": status,
+        "risk_level": status,
         "alert": alert,
         "recommendation": rec,
         "attack_vector": attribution.get("primary_vector", "UNKNOWN"),
@@ -100,3 +101,28 @@ def calculate_risk(
         "policy_reason": action.get("policy_reason", ""),
         "reasons": attribution.get("attribution_reasons", []),
     }
+
+
+def assess_risk(
+    detector_results: List[Dict[str, Any]],
+    session_id: Optional[str] = None,
+    audio_quality: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    High-level risk evaluation helper.
+    Computes ensemble fusion, temporal smoothing, consensus, attribution, and mitigation policies.
+    """
+    from risk_engine.adaptive_fusion import AdaptiveFusionEngine
+
+    fusion_engine = AdaptiveFusionEngine()
+    fusion_result = fusion_engine.fuse(detector_results, audio_quality)
+    fused_score = fusion_result.get("fused_score", 0.0)
+
+    res = calculate_risk(
+        fake_probability=fused_score,
+        detector_results=detector_results,
+        audio_quality=audio_quality,
+    )
+    res["fused_score"] = round(float(fused_score), 4)
+    res["detectors"] = detector_results
+    return res

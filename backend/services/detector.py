@@ -118,30 +118,26 @@ def parse_audio_bytes_to_array(audio_bytes: bytes, sample_rate: int = 16000) -> 
     return np.zeros(64600, dtype=np.float32)
 
 
-async def detect_voice(
-    audio_bytes: bytes,
+def detect_voice_sync(
+    audio_input: bytes | np.ndarray,
     sample_rate: int = 16000,
 ) -> Dict[str, Any]:
     """
-    Real multi-model inference on audio bytes.
-    Returns standardized prediction contract:
-    {
-        "fake_probability": float,
-        "real_probability": float,
-        "detectors": List[Dict],
-        "quality": Dict,
-    }
+    Synchronous multi-model inference on audio input (bytes or float32 np.ndarray).
     """
     _init_detectors()
 
-    # Convert bytes to audio array
-    audio_array = parse_audio_bytes_to_array(audio_bytes, sample_rate)
+    if isinstance(audio_input, np.ndarray):
+        audio_array = audio_input.astype(np.float32)
+        if audio_array.ndim > 1:
+            audio_array = np.mean(audio_array, axis=1)
+    else:
+        audio_array = parse_audio_bytes_to_array(audio_input, sample_rate)
 
     # Pad/slice to 64,600 samples
     if len(audio_array) < 64600:
         audio_array = np.pad(audio_array, (0, 64600 - len(audio_array)))
     elif len(audio_array) > 64600:
-        # Take the most recent 64,600 samples from rolling buffer
         audio_array = audio_array[-64600:]
 
     # 1. Audio Quality Analysis
@@ -207,3 +203,11 @@ async def detect_voice(
         "speaker_consistency": speaker_res,
         "active_models": [d["model"] for d in detector_results],
     }
+
+
+async def detect_voice(
+    audio_bytes: bytes | np.ndarray,
+    sample_rate: int = 16000,
+) -> Dict[str, Any]:
+    """Async wrapper for detect_voice_sync."""
+    return detect_voice_sync(audio_bytes, sample_rate)

@@ -163,6 +163,15 @@ class EnergyVADGate:
             "latency_ms": round(latency_ms, 3),
         }
 
+    def process_window(self, audio: np.ndarray):
+        """Convenience tuple return: (is_speech: bool, speech_ratio: float, energy_db: float)."""
+        res = self.is_speech(audio)
+        return res["speech_detected"], res["speech_ratio"], res["energy_db"]
+
+
+# Alias for backward and forward compatibility
+VADGate = EnergyVADGate
+
 
 if __name__ == "__main__":
     print("ENERGY VAD GATE: SELF TEST")
