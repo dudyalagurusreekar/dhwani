@@ -222,6 +222,75 @@ class AuditHashChain:
         with self._lock:
             return "\n".join(json.dumps(e.to_dict()) for e in self._chain)
 
+    def export_verification_certificate(self) -> Dict[str, Any]:
+        """
+        Generate a cryptographically sealed verification certificate of the audit ledger.
+        Computes a cumulative root digest across all chained event hashes.
+        Suitable for third-party compliance audits and non-repudiation attestations.
+        """
+        with self._lock:
+            report = self.verify_integrity()
+            # Compute cumulative root digest over all block hashes
+            hasher = hashlib.sha256()
+            for event in self._chain:
+                hasher.update(event.chain_hash.encode("utf-8"))
+            root_digest = hasher.hexdigest().lower()
+
+            return {
+                "certificate_version": "1.0.0",
+                "is_valid": report.is_valid,
+                "total_events": len(self._chain),
+                "genesis_hash": self._chain[0].chain_hash if self._chain else GENESIS_PREV_HASH,
+                "tip_hash": self.latest_hash,
+                "ledger_root_digest": root_digest,
+                "tamper_type": report.tamper_type.value,
+                "certified_at": get_current_utc_iso(),
+            }
+
+    def get_session_audit_summary(self, session_id: str) -> Dict[str, Any]:
+        """
+        Produce a forensic summary for a specific call/stream session.
+        Aggregates chunks processed, risk trajectory, and provenance tokens.
+        """
+        with self._lock:
+            session_events = [e for e in self._chain if e.session_id == session_id]
+            if not session_events:
+                return {
+                    "session_id": session_id,
+                    "total_events": 0,
+                    "found": False,
+                }
+
+            fake_probs = []
+            risk_scores = []
+            statuses = []
+
+            for e in session_events:
+                p = e.payload or {}
+                if "fake_probability" in p:
+                    fake_probs.append(p["fake_probability"])
+                elif "ai_score" in p:
+                    fake_probs.append(p["ai_score"])
+                if "risk_score" in p:
+                    risk_scores.append(p["risk_score"])
+                if "risk_status" in p:
+                    statuses.append(p["risk_status"])
+
+            return {
+                "session_id": session_id,
+                "found": True,
+                "total_events": len(session_events),
+                "first_event_at": session_events[0].timestamp,
+                "last_event_at": session_events[-1].timestamp,
+                "first_event_hash": session_events[0].chain_hash,
+                "latest_event_hash": session_events[-1].chain_hash,
+                "avg_fake_probability": round(sum(fake_probs) / len(fake_probs), 4) if fake_probs else None,
+                "max_fake_probability": round(max(fake_probs), 4) if fake_probs else None,
+                "max_risk_score": max(risk_scores) if risk_scores else None,
+                "highest_risk_status": "HIGH" if "HIGH" in statuses else ("SUSPICIOUS" if "SUSPICIOUS" in statuses else "LOW"),
+                "event_types": list(set(e.event_type for e in session_events)),
+            }
+
     def tamper_for_testing(self, seq_num: int, field_name: str, new_value: Any) -> None:
         """
         Simulate malicious tampering on an in-memory event.

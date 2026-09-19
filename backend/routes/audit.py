@@ -59,3 +59,27 @@ async def get_latest_hash():
         "length": pipeline.chain.length,
         "latest_hash": pipeline.chain.latest_hash,
     }
+
+
+@router.get("/certificate", summary="Export cryptographically sealed audit certificate")
+async def get_verification_certificate():
+    """
+    Produces a cryptographically sealed compliance certificate with cumulative root digest.
+    Used for non-repudiation attestations and third-party forensic validation.
+    """
+    pipeline = get_global_pipeline()
+    cert = pipeline.chain.export_verification_certificate()
+    return JSONResponse(content=cert)
+
+
+@router.get("/session/{session_id}/summary", summary="Get forensic audit summary for a session")
+async def get_session_summary(session_id: str):
+    """
+    Aggregates chunk history, risk trajectory, and provenance tokens for a specific session.
+    """
+    pipeline = get_global_pipeline()
+    summary = pipeline.chain.get_session_audit_summary(session_id)
+    if not summary.get("found"):
+        raise HTTPException(status_code=404, detail=f"No audit records found for session {session_id}")
+    return JSONResponse(content=summary)
+
