@@ -137,31 +137,66 @@ class MainActivity : ComponentActivity() {
         Thread {
             try {
                 val url = java.net.URL(
-                    "http://172.21.1.0:8000/analyze"
+                    "http://172.21.1.0:8000/api/analyze"
                 )
+
                 val connection =
                     url.openConnection() as java.net.HttpURLConnection
+
+                val boundary = "----DhwaniBoundary"
 
                 connection.requestMethod = "POST"
                 connection.doOutput = true
                 connection.setRequestProperty(
                     "Content-Type",
-                    "audio/mp4"
+                    "multipart/form-data; boundary=$boundary"
                 )
 
-                file.inputStream().use { input ->
-                    connection.outputStream.use { output ->
+                connection.outputStream.use { output ->
+
+                    output.write(
+                        "--$boundary\r\n".toByteArray()
+                    )
+
+                    output.write(
+                        "Content-Disposition: form-data; name=\"file\"; filename=\"audio.m4a\"\r\n"
+                            .toByteArray()
+                    )
+
+                    output.write(
+                        "Content-Type: audio/mp4\r\n\r\n".toByteArray()
+                    )
+
+                    file.inputStream().use { input ->
                         input.copyTo(output)
                     }
+
+                    output.write(
+                        "\r\n--$boundary--\r\n".toByteArray()
+                    )
                 }
 
                 val responseCode = connection.responseCode
 
-                runOnUiThread {
-                    if (responseCode in 200..299) {
-                        status = "ANALYSIS COMPLETE"
-                        risk = "RESULT RECEIVED"
-                    } else {
+                if (responseCode in 200..299) {
+
+                    val response =
+                        connection.inputStream.bufferedReader().use {
+                            it.readText()
+                        }
+
+                    val json = org.json.JSONObject(response)
+
+                    val riskScore = json.getInt("risk_score")
+                    val resultStatus = json.getString("status")
+
+                    runOnUiThread {
+                        risk = riskScore.toString()
+                        status = resultStatus
+                    }
+
+                } else {
+                    runOnUiThread {
                         status = "SERVER ERROR"
                     }
                 }

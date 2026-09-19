@@ -1,71 +1,7 @@
-# ============================================================
-# Python Virtual Environments
-# ============================================================
-.venv/
-venv/
-ENV/
-env/
-*.env
-
-# ============================================================
-# Bytecode and Cache
-# ============================================================
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.pytest_cache/
-.coverage
-htmlcov/
-.cache/
-models/**/.cache/
-ai/**/__pycache__/
-streaming/**/__pycache__/
-
-# ============================================================
-# Large Binary Model Files (>100MB blocked by GitHub)
-# ============================================================
-# Note: w2v2-aasist.onnx is ~1.26GB; download via scripts/download_models.py
-models/w2v2_aasist/*.onnx
-models/**/*.onnx
-*.onnx
-*.bin
-*.pt
-*.tar.gz
-*.zip
-
-# Allow lightweight tracked model weights (<50MB)
-!models/aasist/AASIST.pth
-!ai/aasist/models/weights/AASIST.pth
-!ai/aasist/models/weights/AASIST-L.pth
-!ai/aasist/official/models/weights/AASIST.pth
-!ai/aasist/official/models/weights/AASIST-L.pth
-
-# ============================================================
-# Datasets (ASVspoof raw archives & flac/wav evaluation sets)
-# ============================================================
-datasets/ASVspoof*
-datasets/**/*.flac
-datasets/**/*.wav
-
-# Keep sample / test wave files needed for quick verification
-!acoustic_test.wav
-!microphone_test.wav
-!real_speech.wav
-
-# ============================================================
-# Output and Temporary Audio Files
-# ============================================================
-temp_*.wav
-output_*.wav
-*.tmp
-*.log
-
-# ============================================================
-# IDE & System Files
-# ============================================================
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-desktop.ini
+*.pyc
+backend_temp/
+ai/*.mp4
+ai/*.m4a
+ai/*.wav
+analyze_backend.txt
