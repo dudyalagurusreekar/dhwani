@@ -18,10 +18,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from routes.health import router as health_router
-from routes.analyze import router as analyze_router
-from routes.sessions import router as session_router
-from websocket.audio import router as websocket_router
+from backend.routes.health import router as health_router
+from backend.routes.analyze import router as analyze_router
+from backend.routes.sessions import router as session_router
+from backend.websocket.audio import router as websocket_router
 
 from ai.prevention.honeypot import VoiceHoneypotEngine
 from ai.watermark.audio_watermark import AudioWatermarkEngine

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from sessions.manager import SessionManager
+from backend.sessions.manager import SessionManager
 
 
 router = APIRouter(prefix="/session")

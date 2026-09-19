@@ -4,8 +4,8 @@ from fastapi import (
     File
 )
 
-from services.detector import detect_voice
-from services.risk_engine import calculate_risk
+from backend.services.detector import detect_voice
+from backend.services.risk_engine import calculate_risk
 
 
 router = APIRouter(

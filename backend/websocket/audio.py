@@ -4,11 +4,11 @@ from fastapi import (
     WebSocketDisconnect
 )
 
-from streaming.capture import AudioChunk
-from streaming.stream_manager import StreamManager
+from backend.streaming.capture import AudioChunk
+from backend.streaming.stream_manager import StreamManager
 
-from services.detector import detect_voice
-from services.risk_engine import calculate_risk
+from backend.services.detector import detect_voice
+from backend.services.risk_engine import calculate_risk
 
 
 router = APIRouter()
