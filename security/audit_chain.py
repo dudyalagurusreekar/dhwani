@@ -96,6 +96,30 @@ class AuditHashChain:
 
             return event
 
+    def add_event(
+        self,
+        session_id: str,
+        event_type: EventType | str,
+        risk_score: float | int = 0,
+        model_version: str = "w2v2-aasist-v1",
+        audio_hash: Optional[str] = None,
+        timestamp: Optional[str] = None,
+        **kwargs: Any,
+    ) -> SecurityEvent:
+        """Compatibility wrapper for Member 3 HashChain interface."""
+        payload = kwargs.get("payload", {})
+        if "risk_score" not in payload:
+            payload["risk_score"] = risk_score
+        if "model_version" not in payload:
+            payload["model_version"] = model_version
+        return self.append_event(
+            session_id=session_id,
+            event_type=event_type,
+            audio_hash=audio_hash,
+            payload=payload,
+            timestamp=timestamp,
+        )
+
     def _persist_event(self, event: SecurityEvent) -> None:
         """Append event line to the persistence file atomically."""
         self.persistence_file.parent.mkdir(parents=True, exist_ok=True)
