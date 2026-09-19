@@ -93,37 +93,77 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsAnalyzingUpload(true);
     setIsPlaying(true);
 
-    // Simulate fast neural acoustic analysis
-    setTimeout(() => {
-      const isSuspect =
-        file.name.toLowerCase().includes("clone") ||
-        file.name.toLowerCase().includes("fake") ||
-        file.name.toLowerCase().includes("ai");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(
+        "http://172.21.1.0:8000/api/analyze",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      const riskScore = Number(result.risk_score ?? 0);
+      const fakeProbability = Number(
+        result.fake_probability ?? 0
+      );
+
+      const threat =
+        riskScore >= 70
+          ? "deepfake"
+          : riskScore >= 40
+            ? "warning"
+            : "authentic";
 
       const newSample: AudioSample = {
         id: `custom-${Date.now()}`,
         name: file.name,
-        type: isSuspect ? "Neural Voice Clone (Detected)" : "Acoustic Voice Recording",
-        threat: isSuspect ? "deepfake" : "authentic",
-        confidence: isSuspect ? 98.7 : 99.4,
-        duration: "0:30",
-        spectralDetails: isSuspect
-          ? "Unnatural harmonic phase alignment detected. Vocoder synthetic synthesis markers identified."
-          : "Natural human vocal tract resonance verified. Physiological acoustic jitter confirmed.",
+        type:
+          result.status === "HIGH"
+            ? "AI-Generated Voice Detected"
+            : result.status === "SUSPICIOUS"
+              ? "Voice Requires Verification"
+              : "Human Voice Analysis",
+        threat,
+        confidence: Number(
+          ((1 - fakeProbability) * 100).toFixed(1)
+        ),
+        duration: "Analyzed",
+        spectralDetails:
+          result.alert ||
+          result.recommendation ||
+          "Audio analysis completed.",
         isCustom: true,
       };
 
       setSamples((prev) => [newSample, ...prev]);
       setActiveSample(newSample);
+
+    } catch (error) {
+      console.error("Audio analysis failed:", error);
+      alert(
+        "Could not connect to the Dhwani backend. Make sure FastAPI is running."
+      );
+    } finally {
       setIsAnalyzingUpload(false);
-    }, 900);
+    }
   };
 
   return (
@@ -167,7 +207,7 @@ export default function Home() {
 
         {/* Dot grid pattern — ultra-subtle, mask to center */}
         <div className="absolute inset-0 bg-[radial-gradient(circle,#8B5CFF09_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_30%,#000_60%,transparent_100%)] opacity-40" />
-        
+
         {/* Horizontal scan line */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#8B5CFF]/20 to-transparent" />
       </div>
