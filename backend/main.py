@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes.health import router as health_router
 from routes.analyze import router as analyze_router
 from routes.sessions import router as session_router
-
+from routes.verification import router as verification_router
 from websocket.audio import router as websocket_router
 
 
