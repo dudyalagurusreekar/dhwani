@@ -82,6 +82,8 @@ class EnergyVADGate:
         if total_samples == 0:
             return {
                 "speech_detected": False,
+                "speech_present": False,
+                "speech_ratio": 0.0,
                 "speech_activity_score": 0.0,
                 "energy_db": -180.0,
                 "rms": 0.0,
@@ -149,6 +151,8 @@ class EnergyVADGate:
 
         return {
             "speech_detected": speech_detected,
+            "speech_present": speech_detected,
+            "speech_ratio": round(active_frame_ratio, 4),
             "speech_activity_score": round(activity_score, 4),
             "energy_db": round(energy_db, 2),
             "rms": round(rms, 6),

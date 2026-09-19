@@ -1,7 +1,7 @@
 """
 EchoShield Live Risk Pipeline
 =============================
-Real-time integration connecting:
+Multi-model real-time voice anti-spoofing and prevention system connecting:
 REAL AUDIO (MICROPHONE / FILE)
     ↓
 ROLLING AUDIO BUFFER (64,600 samples @ 16 kHz)
@@ -9,17 +9,20 @@ ROLLING AUDIO BUFFER (64,600 samples @ 16 kHz)
 SPEECH ACTIVITY GATE / VAD PRE-FILTER
     ↓
 if NON_SPEECH:
-    Bypass W2V2 inference -> emit NO_SPEECH structured event
+    Bypass deep models -> emit NO_SPEECH structured event
 if SPEECH:
-    REAL W2V2-AASIST DETECTOR ADAPTER
+    AUDIO QUALITY ANALYZER
         ↓
-    EXISTING RISK ENGINE (Fusion + Temporal Aggregation)
+    MULTI-MODEL DETECTORS:
+    ├── W2V2-AASIST (Real, CUDA)
+    └── AASIST (Real, CUDA)
+        ↓
+    RISK ENGINE (Evidence Fusion + Cross-Model Agreement + Temporal Risk)
         ↓
     LIVE STRUCTURED RISK EVENTS
 
-Active detector: W2V2-AASIST (Real)
-AASIST: Unavailable
-Acoustic: Unavailable
+Active detectors: W2V2-AASIST (Real), AASIST (Real)
+Acoustic: Unavailable (Phase 9)
 """
 
 import argparse
@@ -83,6 +86,8 @@ import soundfile as sf
 import librosa
 
 from ai.ssl_detector.w2v2_aasist_adapter import W2V2AASISTAdapter
+from ai.aasist.aasist_adapter import AASISTAdapter
+from ai.acoustic.audio_quality import AudioQualityAnalyzer
 from risk_engine.risk_engine import RiskEngine
 from streaming.vad_gate import EnergyVADGate
 
@@ -102,13 +107,14 @@ DEFAULT_VAD_THRESHOLD_DB = -38.0            # VAD energy threshold in dBFS
 class LiveRiskPipeline:
     """
     Orchestrates continuous audio acquisition, rolling window extraction,
-    VAD speech activity gating, W2V2-AASIST spoof inference, and multi-window
-    temporal risk scoring.
+    VAD speech activity gating, audio quality analysis, multi-model spoof inference
+    (W2V2-AASIST + AASIST), evidence fusion, and temporal risk scoring.
     """
 
     def __init__(
         self,
         model_path: Optional[str | Path] = None,
+        aasist_model_path: Optional[str | Path] = None,
         vad_threshold_db: float = DEFAULT_VAD_THRESHOLD_DB,
     ):
         self.sample_rate = SAMPLE_RATE
@@ -116,34 +122,46 @@ class LiveRiskPipeline:
         self.window_seconds = WINDOW_SECONDS
         self.analysis_interval = ANALYSIS_INTERVAL
 
-        print("Initializing EchoShield Live Risk Pipeline...")
+        print("Initializing EchoShield Multi-Model Live Risk Pipeline...")
 
-        # Initialize VAD speech activity gate
+        # 1. Speech Activity / VAD Gate
         self.vad_gate = EnergyVADGate(
             energy_threshold_db=vad_threshold_db,
             sample_rate=self.sample_rate,
         )
         print(f"VAD Gate initialized (Threshold: {vad_threshold_db:.1f} dBFS)")
 
-        # Initialize W2V2-AASIST adapter
+        # 2. Audio Quality Analyzer
+        self.quality_analyzer = AudioQualityAnalyzer(sample_rate=self.sample_rate)
+        print("Audio Quality Analyzer initialized.")
+
+        # 3. Model 1: W2V2-AASIST Adapter
         try:
             if model_path:
-                self.adapter = W2V2AASISTAdapter(model_path=model_path)
+                self.w2v2_adapter = W2V2AASISTAdapter(model_path=model_path)
             else:
-                self.adapter = W2V2AASISTAdapter()
+                self.w2v2_adapter = W2V2AASISTAdapter()
         except Exception as e:
             print(f"[ERROR] Failed to load W2V2-AASIST model: {e}", file=sys.stderr)
             raise
 
-        # Check execution provider
-        providers = self.adapter.detector.session.get_providers()
-        print(f"Execution Providers: {providers}")
-        if "CUDAExecutionProvider" in providers:
-            print("CUDA/GPU acceleration is active.")
-        else:
-            print("Running on CPU execution provider.")
+        # 4. Model 2: AASIST Adapter
+        try:
+            if aasist_model_path:
+                self.aasist_adapter = AASISTAdapter(model_path=aasist_model_path)
+            else:
+                self.aasist_adapter = AASISTAdapter()
+        except Exception as e:
+            print(f"[ERROR] Failed to load AASIST model: {e}", file=sys.stderr)
+            raise
 
-        # Initialize RiskEngine
+        # Check execution providers
+        w2v2_provider = self.w2v2_adapter.detector.session.get_providers()[0]
+        aasist_provider = self.aasist_adapter.session.get_providers()[0]
+        print(f"W2V2-AASIST Provider: {w2v2_provider}")
+        print(f"AASIST Provider:      {aasist_provider}")
+
+        # 5. Risk Engine
         self.risk_engine = RiskEngine()
 
         # Audio rolling buffer
@@ -154,9 +172,12 @@ class LiveRiskPipeline:
         self.speech_windows = 0
         self.non_speech_windows = 0
         self.w2v2_executions = 0
+        self.aasist_executions = 0
 
         self.vad_latencies: List[float] = []
         self.w2v2_latencies: List[float] = []
+        self.aasist_latencies: List[float] = []
+        self.quality_latencies: List[float] = []
         self.total_processing_times: List[float] = []
         self.analysis_intervals: List[float] = []
         self.risk_scores: List[float] = []
@@ -166,7 +187,10 @@ class LiveRiskPipeline:
             "HIGH": 0,
             "NO_SPEECH": 0,
         }
-        self.active_detectors = [self.adapter.MODEL_NAME]
+        self.active_detectors = [
+            self.w2v2_adapter.MODEL_NAME,
+            self.aasist_adapter.model_name,
+        ]
         self.events: List[Dict[str, Any]] = []
 
     def reset_metrics(self) -> None:
@@ -176,8 +200,11 @@ class LiveRiskPipeline:
         self.speech_windows = 0
         self.non_speech_windows = 0
         self.w2v2_executions = 0
+        self.aasist_executions = 0
         self.vad_latencies.clear()
         self.w2v2_latencies.clear()
+        self.aasist_latencies.clear()
+        self.quality_latencies.clear()
         self.total_processing_times.clear()
         self.analysis_intervals.clear()
         self.risk_scores.clear()
@@ -196,7 +223,7 @@ class LiveRiskPipeline:
     ) -> Dict[str, Any]:
         """
         Process a single 64,600-sample audio window through VAD gating,
-        conditional W2V2-AASIST inference, and temporal risk scoring.
+        quality analysis, multi-model spoof inference, and temporal risk scoring.
         """
         t_start = time.perf_counter()
         self.window_count += 1
@@ -209,10 +236,17 @@ class LiveRiskPipeline:
         vad_lat = float(vad_res["latency_ms"])
         self.vad_latencies.append(vad_lat)
 
+        speech_present = bool(vad_res["speech_detected"])
+        speech_ratio = float(vad_res["speech_ratio"])
+
+        # 2. Audio Quality Analysis (Computed for all windows)
+        quality_res = self.quality_analyzer.analyze(audio_window, self.sample_rate)
+        self.quality_latencies.append(float(quality_res["latency_ms"]))
+
         # -------------------------------------------------------------
         # BRANCH A: NON-SPEECH (Silence / Background Noise)
         # -------------------------------------------------------------
-        if not vad_res["speech_detected"]:
+        if not speech_present:
             self.non_speech_windows += 1
             self.risk_levels_count["NO_SPEECH"] += 1
 
@@ -220,27 +254,19 @@ class LiveRiskPipeline:
             total_proc_ms = (t_end - t_start) * 1000.0
             self.total_processing_times.append(total_proc_ms)
 
-            # Temporal engine update is bypassed for non-speech windows
-            # to preserve genuine speech spoofing history without distortion.
+            # Structured non-speech event
             event: Dict[str, Any] = {
                 "window_id": self.window_count,
                 "timestamp": timestamp_str,
+                "speech_present": False,
+                "speech_ratio": speech_ratio,
                 "audio": {
                     "sample_rate": self.sample_rate,
                     "window_samples": len(audio_window),
                     "window_seconds": round(len(audio_window) / self.sample_rate, 4),
                 },
-                "vad": {
-                    "speech_detected": False,
-                    "speech_activity_score": vad_res["speech_activity_score"],
-                    "energy_db": vad_res["energy_db"],
-                    "rms": vad_res["rms"],
-                    "active_frame_ratio": vad_res["active_frame_ratio"],
-                    "zcr": vad_res["zcr"],
-                    "status": "NON_SPEECH",
-                    "reason": vad_res["reason"],
-                    "latency_ms": vad_lat,
-                },
+                "vad": vad_res,
+                "audio_quality": quality_res,
                 "detectors": [],
                 "risk_status": "NO_SPEECH",
             }
@@ -250,31 +276,47 @@ class LiveRiskPipeline:
             return event
 
         # -------------------------------------------------------------
-        # BRANCH B: SPEECH DETECTED (Run W2V2-AASIST + RiskEngine)
+        # BRANCH B: SPEECH DETECTED (Run W2V2-AASIST + AASIST + RiskEngine)
         # -------------------------------------------------------------
         self.speech_windows += 1
         self.w2v2_executions += 1
+        self.aasist_executions += 1
 
-        # Run real W2V2-AASIST detector
-        detector_result = self.adapter.predict_audio(
+        # Run Model 1: W2V2-AASIST
+        w2v2_result = self.w2v2_adapter.predict_audio(
             audio_window,
             sample_rate=self.sample_rate,
         )
-        detector_result["status"] = "REAL"
+        w2v2_result["status"] = "REAL"
+        w2v2_lat = float(w2v2_result["latency_ms"])
+        self.w2v2_latencies.append(w2v2_lat)
 
-        # Risk orchestration: ONLY real detector result passed.
-        # model_agreement=False because only 1 detector is currently available.
+        # Run Model 2: AASIST
+        aasist_result = self.aasist_adapter.predict_audio(
+            audio_window,
+            sample_rate=self.sample_rate,
+        )
+        aasist_result["status"] = "REAL"
+        aasist_lat = float(aasist_result["latency_ms"])
+        self.aasist_latencies.append(aasist_lat)
+
+        # Multi-model agreement check:
+        # Both models indicate spoof (score >= 0.40) or both indicate bona fide (score < 0.40)
+        w2v2_score = float(w2v2_result["raw_score"])
+        aasist_score = float(aasist_result["raw_score"])
+        model_agreement = (
+            (w2v2_score >= 0.40 and aasist_score >= 0.40)
+            or (w2v2_score < 0.40 and aasist_score < 0.40)
+        )
+
+        # Risk orchestration: Both real detector results passed.
         risk_output = self.risk_engine.update(
-            [detector_result],
-            model_agreement=False,
+            [w2v2_result, aasist_result],
+            model_agreement=model_agreement,
         )
 
         t_end = time.perf_counter()
         total_proc_ms = (t_end - t_start) * 1000.0
-
-        # Record metrics
-        w2v2_lat = float(detector_result["latency_ms"])
-        self.w2v2_latencies.append(w2v2_lat)
         self.total_processing_times.append(total_proc_ms)
 
         risk_score = float(risk_output["risk_score"])
@@ -282,35 +324,36 @@ class LiveRiskPipeline:
         risk_level = str(risk_output["risk_level"])
         self.risk_levels_count[risk_level] = self.risk_levels_count.get(risk_level, 0) + 1
 
-        # Construct structured speech event dictionary
-        event: Dict[str, Any] = {
+        # Construct structured multi-model speech event dictionary
+        event = {
             "window_id": self.window_count,
             "timestamp": timestamp_str,
+            "speech_present": True,
+            "speech_ratio": speech_ratio,
             "audio": {
                 "sample_rate": self.sample_rate,
                 "window_samples": len(audio_window),
                 "window_seconds": round(len(audio_window) / self.sample_rate, 4),
             },
-            "vad": {
-                "speech_detected": True,
-                "speech_activity_score": vad_res["speech_activity_score"],
-                "energy_db": vad_res["energy_db"],
-                "rms": vad_res["rms"],
-                "active_frame_ratio": vad_res["active_frame_ratio"],
-                "zcr": vad_res["zcr"],
-                "status": "SPEECH",
-                "reason": vad_res["reason"],
-                "latency_ms": vad_lat,
-            },
+            "vad": vad_res,
+            "audio_quality": quality_res,
             "detectors": [
                 {
-                    "model": detector_result["model"],
-                    "raw_score": round(float(detector_result["raw_score"]), 4),
+                    "model": w2v2_result["model"],
+                    "raw_score": round(float(w2v2_result["raw_score"]), 4),
                     "latency_ms": round(w2v2_lat, 2),
-                    "score_direction": detector_result["score_direction"],
+                    "score_direction": w2v2_result["score_direction"],
                     "status": "REAL",
-                    "metadata": detector_result.get("metadata", {}),
-                }
+                    "metadata": w2v2_result.get("metadata", {}),
+                },
+                {
+                    "model": aasist_result["model"],
+                    "raw_score": round(float(aasist_result["raw_score"]), 4),
+                    "latency_ms": round(aasist_lat, 2),
+                    "score_direction": aasist_result["score_direction"],
+                    "status": "REAL",
+                    "metadata": aasist_result.get("metadata", {}),
+                },
             ],
             "fusion": risk_output["fusion"],
             "temporal": risk_output["temporal"],
@@ -329,10 +372,11 @@ class LiveRiskPipeline:
         window_id = event["window_id"]
         ts = event["timestamp"]
         vad = event["vad"]
+        q = event["audio_quality"]
 
         print("==================================================")
-        print("ECHOSHIELD LIVE RISK MONITOR")
-        print("============================")
+        print("ECHOSHIELD MULTI-MODEL LIVE RISK MONITOR")
+        print("========================================")
         print(f"Window: {window_id:03d}")
         print(f"Timestamp: {ts}")
         print()
@@ -340,38 +384,44 @@ class LiveRiskPipeline:
         print(f"  status: {vad['status']}")
         print(f"  speech_activity_score: {vad['speech_activity_score']:.3f}")
         print(f"  energy_db: {vad['energy_db']:.1f} dB")
-        print(f"  reason: {vad['reason']}")
+        print(f"  speech_ratio: {vad.get('speech_ratio', 0.0):.2f}")
+        print()
+        print("AUDIO QUALITY")
+        print(f"  quality_level: {q['quality_level']} (score: {q['quality_score']:.2f})")
+        print(f"  estimated_snr: {q['estimated_snr_db']:.1f} dB")
+        print(f"  clipping_ratio: {q['clipping_ratio']:.4f}")
+        print(f"  spectral_flatness: {q['spectral_flatness']:.4f}")
 
         if vad["status"] == "NON_SPEECH":
             print()
             print("STATUS")
             print(f"  risk_status: {event['risk_status']}")
-            print("  note: W2V2-AASIST inference bypassed (non-speech)")
+            print("  note: Detector inferences bypassed (non-speech)")
             print("==================================================")
             print()
             return
 
         # Speech event sections
-        d = event["detectors"][0]
+        detectors = event["detectors"]
         fusion = event["fusion"]
         temporal = event["temporal"]
         reasons = event["reasons"]
 
         print()
-        print("DETECTORS")
-        print(f"{d['model']}")
-        print(f"  spoof_score: {d['raw_score']:.3f}")
-        print(f"  latency_ms: {d['latency_ms']:.1f}")
-        print(f"  status: {d['status']}")
+        print("DETECTORS (REAL)")
+        for d in detectors:
+            print(f"  {d['model']}: spoof_score={d['raw_score']:.3f}, latency={d['latency_ms']:.1f} ms, status={d['status']}")
         print()
         print("FUSION")
         print(f"  fused_score: {fusion['fused_score']:.3f}")
         print(f"  active_models: {fusion['active_models']}")
+        print(f"  weights sum: {fusion['total_active_weight']:.2f}")
         print()
         print("TEMPORAL")
         print(f"  moving_average: {temporal['moving_average']:.3f}")
         print(f"  ema: {temporal['ema']:.3f}")
         print(f"  trend: {temporal['trend']:.3f}")
+        print(f"  agreement: {temporal.get('model_agreement')}")
         print()
         print("RISK")
         print(f"  risk_score: {event['risk_score']:.3f}")
@@ -397,26 +447,37 @@ class LiveRiskPipeline:
         print(f"Speech windows:           {self.speech_windows}")
         print(f"Non-speech windows:       {self.non_speech_windows}")
         print(f"W2V2 executions:          {self.w2v2_executions}")
+        print(f"AASIST executions:        {self.aasist_executions}")
 
         if self.vad_latencies:
             avg_vad = sum(self.vad_latencies) / len(self.vad_latencies)
             print(f"VAD Latency (avg):        {avg_vad:.2f} ms")
 
+        if self.quality_latencies:
+            avg_q = sum(self.quality_latencies) / len(self.quality_latencies)
+            print(f"Audio Quality Latency (avg): {avg_q:.2f} ms")
+
         if self.w2v2_latencies:
-            avg_lat = sum(self.w2v2_latencies) / len(self.w2v2_latencies)
-            min_lat = min(self.w2v2_latencies)
-            max_lat = max(self.w2v2_latencies)
-            sorted_lat = sorted(self.w2v2_latencies)
-            med_lat = sorted_lat[len(sorted_lat) // 2]
-            print(f"W2V2 Latency (avg):       {avg_lat:.2f} ms")
-            print(f"W2V2 Latency (median):    {med_lat:.2f} ms")
-            print(f"W2V2 Latency (min/max):   {min_lat:.2f} ms / {max_lat:.2f} ms")
+            avg_w2v2 = sum(self.w2v2_latencies) / len(self.w2v2_latencies)
+            sorted_w2v2 = sorted(self.w2v2_latencies)
+            med_w2v2 = sorted_w2v2[len(sorted_w2v2) // 2]
+            print(f"W2V2 Latency (avg):       {avg_w2v2:.2f} ms (median: {med_w2v2:.2f} ms)")
         else:
-            print("W2V2 Latency:             N/A (no speech windows executed)")
+            print("W2V2 Latency:             N/A")
+
+        if self.aasist_latencies:
+            avg_aasist = sum(self.aasist_latencies) / len(self.aasist_latencies)
+            sorted_aasist = sorted(self.aasist_latencies)
+            med_aasist = sorted_aasist[len(sorted_aasist) // 2]
+            print(f"AASIST Latency (avg):     {avg_aasist:.2f} ms (median: {med_aasist:.2f} ms)")
+        else:
+            print("AASIST Latency:           N/A")
 
         if self.total_processing_times:
             avg_proc = sum(self.total_processing_times) / len(self.total_processing_times)
-            print(f"Avg total processing:     {avg_proc:.2f} ms")
+            sorted_proc = sorted(self.total_processing_times)
+            med_proc = sorted_proc[len(sorted_proc) // 2]
+            print(f"Avg total processing:     {avg_proc:.2f} ms (median: {med_proc:.2f} ms)")
 
         if self.analysis_intervals:
             avg_interval = sum(self.analysis_intervals) / len(self.analysis_intervals)
@@ -446,7 +507,7 @@ class LiveRiskPipeline:
         max_windows: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Run test stream using a pre-recorded audio file.
+        Run multi-model test stream using a pre-recorded audio file.
         Passes audio in 1.0-second hops through the rolling buffer.
         """
         file_path = Path(file_path)
@@ -530,7 +591,6 @@ class LiveRiskPipeline:
         """
         Run continuous real-time analysis from the local microphone.
         """
-        # Verify microphone availability
         try:
             devices = sd.query_devices()
             if not devices:
@@ -553,6 +613,7 @@ class LiveRiskPipeline:
         print(f"Window duration:    {self.window_seconds:.3f} s ({self.window_samples} samples)")
         print(f"Analysis interval:  {self.analysis_interval:.1f} s")
         print(f"VAD Threshold:      {self.vad_gate.energy_threshold_db:.1f} dBFS")
+        print(f"Active Models:      {self.active_detectors}")
         print()
         print(f"Buffer will fill for {self.window_seconds:.1f} seconds before first window.")
         print("Press Ctrl+C at any time to stop and view the session summary.")
@@ -604,7 +665,7 @@ class LiveRiskPipeline:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="EchoShield Live Risk Pipeline - Real-time Voice Spoof Monitoring"
+        description="EchoShield Multi-Model Live Risk Pipeline - Real-time Voice Spoof Monitoring"
     )
     parser.add_argument(
         "--file",
