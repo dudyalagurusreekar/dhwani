@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from __future__ import annotations
 
 import os
@@ -85,55 +84,4 @@ async def analyze(
             "event_seq": event.seq_num,
         },
         **risk,
-=======
-from fastapi import (
-    APIRouter,
-    UploadFile,
-    File
-)
-
-from services.detector import detect_voice
-from services.risk_engine import calculate_risk
-
-
-router = APIRouter(
-    prefix="/analyze"
-)
-
-
-@router.post("")
-async def analyze(
-    file: UploadFile = File(...)
-):
-
-    audio_bytes = (
-        await file.read()
-    )
-
-    prediction = (
-        await detect_voice(
-            audio_bytes
-        )
-    )
-
-    risk = calculate_risk(
-        prediction[
-            "fake_probability"
-        ]
-    )
-
-    return {
-
-        "fake_probability":
-            prediction[
-                "fake_probability"
-            ],
-
-        "real_probability":
-            prediction[
-                "real_probability"
-            ],
-
-        **risk
->>>>>>> 3b89e99 (Integrate W2V2 detection with Android and backend)
     }
