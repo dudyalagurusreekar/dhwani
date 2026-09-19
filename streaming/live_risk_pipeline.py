@@ -169,6 +169,14 @@ class LiveRiskPipeline:
         }
         self.events: List[Dict[str, Any]] = []
 
+    @property
+    def w2v2_executions(self) -> int:
+        return self.detector_executions.get("W2V2-AASIST", 0)
+
+    @property
+    def aasist_executions(self) -> int:
+        return self.detector_executions.get("AASIST", 0)
+
     def reset_metrics(self) -> None:
         """Reset session metrics and buffer."""
         self.buffer.clear()

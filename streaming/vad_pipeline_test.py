@@ -85,13 +85,15 @@ def test_real_speech_and_json():
 
         if ev["speech_present"]:
             assert "detectors" in ev
-            assert len(ev["detectors"]) == 2, f"Expected 2 detectors, got {len(ev['detectors'])}"
+            assert len(ev["detectors"]) == len(pipeline.active_detectors), f"Expected {len(pipeline.active_detectors)} detectors, got {len(ev['detectors'])}"
             models = [d["model"] for d in ev["detectors"]]
             assert "W2V2-AASIST" in models
             assert "AASIST" in models
+            assert "AASIST-L" in models
+            assert "ACOUSTIC" in models
             assert "fusion" in ev
             assert "active_models" in ev["fusion"]
-            assert len(ev["fusion"]["active_models"]) == 2
+            assert len(ev["fusion"]["active_models"]) == len(pipeline.active_detectors)
             assert "temporal" in ev
             assert "risk_score" in ev
             assert "risk_level" in ev
