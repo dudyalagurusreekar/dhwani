@@ -32,7 +32,7 @@ async def handle_twilio_media_stream(websocket: WebSocket):
     logger.info("Twilio media stream connection accepted.")
 
     decoder = TelephonyAudioDecoder(target_sample_rate=16000, source_sample_rate=8000)
-    vad_gate = VADGate(energy_threshold_db=-38.0, speech_ratio_threshold=0.25)
+    vad_gate = VADGate(energy_threshold_db=-38.0, active_frame_ratio_threshold=0.25)
 
     current_session: Optional[CallSession] = None
     stream_sid: Optional[str] = None
@@ -104,10 +104,15 @@ async def handle_twilio_media_stream(websocket: WebSocket):
                         continue
 
                     # Step 2: Multi-Model Detection (AASIST, AASIST-L, Acoustic, W2V2-AASIST)
-                    detector_results = detect_voice(window)
+                    detector_resp = await detect_voice(window)
+                    detector_results = detector_resp.get("detectors", [])
 
                     # Step 3: Risk Evaluation, Adaptive Fusion & Inter-Model Consensus
-                    risk_assessment = assess_risk(detector_results, session_id=current_session.call_sid)
+                    risk_assessment = assess_risk(
+                        detector_results,
+                        session_id=current_session.call_sid,
+                        audio_quality=detector_resp.get("quality"),
+                    )
 
                     # Step 4: Policy Enforcement
                     current_session.update_risk_telemetry(

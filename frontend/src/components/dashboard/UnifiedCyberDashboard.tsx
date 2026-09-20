@@ -816,10 +816,191 @@ export default function UnifiedCyberDashboard() {
           )}
         </div>
       )}
+      {/* 
+        ════════════════════════════════════════════════════════
+        TAB D: RISK MONITOR — Live Temporal Risk Feed
+        ════════════════════════════════════════════════════════
+      */}
+      {activeTab === "risk-monitor" && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Live Risk Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-5 rounded-2xl bg-[#0D061A]/80 border border-white/10">
+              <span className="text-xs text-[#A7A3B5] uppercase font-mono tracking-wider">
+                Current Risk Score
+              </span>
+              <div className="flex items-baseline justify-between mt-2">
+                <span
+                  className={`text-3xl font-black font-mono ${
+                    liveCall.risk_score > 70
+                      ? "text-rose-400"
+                      : liveCall.risk_score > 40
+                      ? "text-amber-400"
+                      : "text-emerald-400"
+                  }`}
+                >
+                  {liveCall.risk_score}%
+                </span>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded font-mono font-bold ${
+                    liveCall.risk_score > 70
+                      ? "bg-rose-500/20 text-rose-400"
+                      : liveCall.risk_score > 40
+                      ? "bg-amber-500/20 text-amber-400"
+                      : "bg-emerald-500/20 text-emerald-400"
+                  }`}
+                >
+                  {liveCall.risk_level}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-[#0D061A]/80 border border-white/10">
+              <span className="text-xs text-[#A7A3B5] uppercase font-mono tracking-wider">
+                Model Consensus
+              </span>
+              <div className="text-xl font-bold text-white font-mono mt-2">
+                {liveCall.consensus}
+              </div>
+              <p className="text-xs text-[#7A758F] mt-1 truncate">
+                {liveCall.consensus_explanation}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-[#0D061A]/80 border border-white/10">
+              <span className="text-xs text-[#A7A3B5] uppercase font-mono tracking-wider">
+                Attack Attribution
+              </span>
+              <div className="text-xl font-bold text-[#22D3EE] font-mono mt-2">
+                {liveCall.attribution}
+              </div>
+              <p className="text-xs text-[#7A758F] mt-1">
+                Active policy: {liveCall.policy_action || "ALLOW"}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-[#0D061A]/80 border border-white/10">
+              <span className="text-xs text-[#A7A3B5] uppercase font-mono tracking-wider">
+                WebSocket Feed
+              </span>
+              <div className="flex items-center gap-2 mt-2">
+                <span
+                  className={`w-2.5 h-2.5 rounded-full ${
+                    wsConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                  }`}
+                />
+                <span className="text-lg font-bold text-white font-mono">
+                  {wsConnected ? "LIVE" : "RECONNECTING"}
+                </span>
+              </div>
+              <p className="text-xs text-[#7A758F] mt-1">
+                Real-time risk telemetry stream
+              </p>
+            </div>
+          </div>
+
+          {/* Detector Scores Grid */}
+          <div className="p-6 rounded-3xl bg-[#0C061A]/90 border border-white/10">
+            <h4 className="text-xs text-[#A7A3B5] uppercase font-mono tracking-wider mb-4">
+              Live Neural Model Scores
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {liveCall.detectors.map((det) => (
+                <div
+                  key={det.model}
+                  className="p-4 rounded-xl bg-[#080312] border border-white/10 space-y-3"
+                >
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-white font-semibold">{det.model}</span>
+                    <span className="text-[#22D3EE]">{det.latency_ms} ms</span>
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs text-[#7A758F]">Spoof Probability</span>
+                    <span
+                      className={`text-2xl font-black font-mono ${
+                        det.raw_score > 0.6
+                          ? "text-rose-400"
+                          : det.raw_score > 0.3
+                          ? "text-amber-400"
+                          : "text-emerald-400"
+                      }`}
+                    >
+                      {Math.round(det.raw_score * 100)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        det.raw_score > 0.6
+                          ? "bg-gradient-to-r from-rose-500 to-rose-400"
+                          : det.raw_score > 0.3
+                          ? "bg-gradient-to-r from-amber-500 to-amber-400"
+                          : "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                      }`}
+                      style={{ width: `${Math.round(det.raw_score * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Risk Rationale & Policy */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="p-6 rounded-3xl bg-[#0C061A]/90 border border-white/10 space-y-4">
+              <h4 className="text-xs text-[#A7A3B5] uppercase font-mono tracking-wider">
+                Risk Engine Rationale
+              </h4>
+              <ul className="space-y-2 text-xs text-white/90 list-disc list-inside font-mono">
+                {liveCall.reasons.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+                {liveCall.reasons.length === 0 && (
+                  <li className="text-[#7A758F]">No active risk signals in current session.</li>
+                )}
+              </ul>
+            </div>
+
+            <div className="p-6 rounded-3xl bg-[#0C061A]/90 border border-white/10 space-y-4">
+              <h4 className="text-xs text-[#A7A3B5] uppercase font-mono tracking-wider">
+                Active Mitigation Policy
+              </h4>
+              <div className="space-y-3 text-xs font-mono">
+                <div className="flex justify-between items-center text-[#A7A3B5]">
+                  <span>Policy Action</span>
+                  <span
+                    className={`font-bold px-2.5 py-1 rounded-lg ${
+                      liveCall.policy_action === "TERMINATE_SESSION"
+                        ? "bg-rose-500/20 text-rose-400 border border-rose-500/30"
+                        : liveCall.policy_action === "TRIGGER_VOICE_HONEYPOT"
+                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                    }`}
+                  >
+                    {liveCall.policy_action || "ALLOW"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[#A7A3B5]">
+                  <span>Severity</span>
+                  <span className="text-white font-semibold">
+                    {liveCall.policy_severity || "INFO"}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-white/5">
+                  <span className="text-[#7A758F]">Reason:</span>
+                  <p className="text-white/80 mt-1">
+                    {liveCall.policy_reason || "No active enforcement policy."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 
         ════════════════════════════════════════════════════════
-        TAB D: INCIDENTS / SECURITY EVIDENCE (Requirement 18)
+        TAB E: INCIDENTS / SECURITY EVIDENCE (Requirement 18)
         ════════════════════════════════════════════════════════
       */}
       {activeTab === "incidents" && (

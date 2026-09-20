@@ -62,8 +62,8 @@ async def verify_audit_chain():
     return {
         "is_valid": report.is_valid,
         "total_events": report.total_events,
-        "tampered_index": report.tampered_index,
-        "error_message": report.error_message,
+        "tampered_index": report.tampered_event_seq,
+        "error_message": report.error_reason,
         "verified_at": datetime.now(timezone.utc).isoformat(),
     }
 
