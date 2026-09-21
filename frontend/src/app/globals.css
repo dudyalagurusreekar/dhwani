@@ -247,10 +247,10 @@ body {
   to   { opacity: 1; }
 }
 
-/* Default state: hidden (applied via JS IntersectionObserver) */
+/* Default state: visible by default so content is NEVER hidden */
 .reveal {
-  opacity: 0;
-  transform: translateY(28px);
+  opacity: 1;
+  transform: translateY(0);
   transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -261,8 +261,8 @@ body {
 }
 
 .reveal-left {
-  opacity: 0;
-  transform: translateX(-24px);
+  opacity: 1;
+  transform: translateX(0);
   transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -273,8 +273,8 @@ body {
 }
 
 .reveal-right {
-  opacity: 0;
-  transform: translateX(24px);
+  opacity: 1;
+  transform: translateX(0);
   transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }

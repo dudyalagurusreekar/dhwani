@@ -4,19 +4,20 @@ import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 /* ═══════════════════════════════════════════════════════════════════
-   DHWANI AI NEURAL CORE — COLOR PALETTE (EXACT SPECIFICATION)
-   Predominantly dark (60–70% dark body) + electric purple & blue rim highlights
+   DHWANI AI NEURAL CORE — BLUE & PURPLE THEME PALETTE
+   Saturated royal cobalt, electric blue, vivid violet, and electric purple
+   (Zero bleached white tones; rich dual-tone chromatic contrast)
    ═══════════════════════════════════════════════════════════════════ */
 const PALETTE = {
-  black: 0x05030d,
-  darkNavy: 0x080a1f,
-  deepIndigo: 0x11104a,
-  violet: 0x6d28d9,
+  black: 0x03020a,
+  darkNavy: 0x060920,
+  deepIndigo: 0x1e1b4b,
+  deepViolet: 0x4c1d95,
   electricPurple: 0x8b5cf6,
-  magenta: 0xc026d3,
+  vividViolet: 0x7c3aed,
+  royalBlue: 0x1d4ed8,
   electricBlue: 0x2563eb,
-  cyanAccents: 0x00d9ff,
-  pureWhite: 0xffffff,
+  neonCyan: 0x00d8ff,
 };
 
 interface DhwaniSphereProps {
@@ -51,7 +52,7 @@ export default function DhwaniSphere({
     });
     renderer.setPixelRatio(dpr);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.35; // Calibrated for deep rich blacks and crisp rim highlights
+    renderer.toneMappingExposure = 1.05; // Balanced exposure preserves deep rich blues and purples
     renderer.setClearColor(0x000000, 0);
 
     // ═════════════════════════════════════════════
@@ -75,8 +76,7 @@ export default function DhwaniSphere({
     window.addEventListener("resize", handleResize);
 
     // ═════════════════════════════════════════════
-    //  HDR CYBERPUNK ENVIRONMENT MAP
-    //  Creates razor-sharp purple and cyan specular edge reflections on dark chrome
+    //  HDR BLUE & PURPLE CYBERPUNK ENVIRONMENT MAP
     // ═════════════════════════════════════════════
     const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256, {
       generateMipmaps: true,
@@ -88,11 +88,11 @@ export default function DhwaniSphere({
     const envScene = new THREE.Scene();
     const envBoxGeo = new THREE.BoxGeometry(10, 10, 10);
     const envMaterials = [
-      new THREE.MeshBasicMaterial({ color: PALETTE.cyanAccents }), // right: cyan
-      new THREE.MeshBasicMaterial({ color: PALETTE.electricPurple }), // left: purple
-      new THREE.MeshBasicMaterial({ color: PALETTE.violet }), // top: violet
+      new THREE.MeshBasicMaterial({ color: PALETTE.electricBlue }), // right: electric blue
+      new THREE.MeshBasicMaterial({ color: PALETTE.electricPurple }), // left: electric purple
+      new THREE.MeshBasicMaterial({ color: PALETTE.vividViolet }), // top: vivid violet
       new THREE.MeshBasicMaterial({ color: PALETTE.black }), // bottom: pure dark shadow
-      new THREE.MeshBasicMaterial({ color: PALETTE.pureWhite }), // front: pinpoint white glint
+      new THREE.MeshBasicMaterial({ color: PALETTE.electricBlue }), // front: electric blue reflection
       new THREE.MeshBasicMaterial({ color: PALETTE.deepIndigo }), // back: deep indigo
     ];
     const envMesh = new THREE.Mesh(envBoxGeo, envMaterials);
@@ -103,27 +103,27 @@ export default function DhwaniSphere({
 
     // ═════════════════════════════════════════════
     //  CINEMATIC LIGHTING RIG
-    //  High-contrast mood lighting: dark surfaces, sharp colored rim glints
+    //  Dual-tone high-contrast blue & purple lighting
     // ═════════════════════════════════════════════
-    scene.add(new THREE.AmbientLight(PALETTE.darkNavy, 1.4));
+    scene.add(new THREE.AmbientLight(PALETTE.darkNavy, 1.2));
 
-    // Key Light 1: Deep Violet / Electric Purple (upper-left)
-    const purpleKeyLight = new THREE.DirectionalLight(PALETTE.electricPurple, 6.0);
+    // Key Light 1: Electric Purple (upper-left)
+    const purpleKeyLight = new THREE.DirectionalLight(PALETTE.electricPurple, 5.5);
     purpleKeyLight.position.set(-5, 6, 4.5);
     scene.add(purpleKeyLight);
 
     // Key Light 2: Electric Blue (bottom-right)
-    const blueKeyLight = new THREE.DirectionalLight(PALETTE.electricBlue, 5.0);
+    const blueKeyLight = new THREE.DirectionalLight(PALETTE.electricBlue, 5.5);
     blueKeyLight.position.set(5.5, -4.5, 4);
     scene.add(blueKeyLight);
 
-    // Rim Light: Vivid Cyan Accent (back-right edge)
-    const cyanRimLight = new THREE.DirectionalLight(PALETTE.cyanAccents, 4.5);
+    // Rim Light: Vivid Neon Cyan (back-right edge)
+    const cyanRimLight = new THREE.DirectionalLight(PALETTE.neonCyan, 4.0);
     cyanRimLight.position.set(4, 2.5, -5);
     scene.add(cyanRimLight);
 
-    // Specular Glint Light: Sharp pinpoint white highlight for beveled chamfers
-    const glintLight = new THREE.PointLight(PALETTE.pureWhite, 3.5, 12);
+    // Specular Glint Light: Subtle Electric Purple highlight
+    const glintLight = new THREE.PointLight(PALETTE.electricPurple, 2.0, 12);
     glintLight.position.set(2, 3, 5);
     scene.add(glintLight);
 
@@ -136,7 +136,7 @@ export default function DhwaniSphere({
     // ═════════════════════════════════════════════
     //  1. INNER AI NEURAL CORE
     //  Dark spherical core with digital particle lattice, concentric rings,
-    //  and a concentrated pinpoint violet/cyan energy flare at center
+    //  and a concentrated pinpoint cyan/blue energy flare at center
     // ═════════════════════════════════════════════
     const coreGroup = new THREE.Group();
     orbGroup.add(coreGroup);
@@ -154,7 +154,7 @@ export default function DhwaniSphere({
       transmission: 0.25,
       ior: 1.6,
       envMap: cubeRenderTarget.texture,
-      envMapIntensity: 3.0,
+      envMapIntensity: 2.8,
     });
     const innerCoreMesh = new THREE.Mesh(innerCoreGeo, innerCoreMat);
     coreGroup.add(innerCoreMesh);
@@ -166,9 +166,9 @@ export default function DhwaniSphere({
     const lonCount = 42;
     const coreRadius = 0.675;
 
-    const colViolet = new THREE.Color(PALETTE.violet);
     const colPurple = new THREE.Color(PALETTE.electricPurple);
-    const colCyan = new THREE.Color(PALETTE.cyanAccents);
+    const colBlue = new THREE.Color(PALETTE.electricBlue);
+    const colCyan = new THREE.Color(PALETTE.neonCyan);
 
     for (let i = 1; i < latCount; i++) {
       const phi = (i / latCount) * Math.PI;
@@ -180,9 +180,9 @@ export default function DhwaniSphere({
         const z = coreRadius * Math.sin(phi) * Math.sin(theta);
         neuralDotsPositions.push(x, y, z);
 
-        // Gradient coloring: cyan accents at equator, electric purple & violet towards poles
+        // Gradient coloring: electric purple at poles, electric blue & cyan at equator
         const latNorm = Math.abs(Math.cos(phi));
-        const c = latNorm < 0.25 ? colCyan : latNorm < 0.6 ? colPurple : colViolet;
+        const c = latNorm < 0.25 ? colCyan : latNorm < 0.6 ? colBlue : colPurple;
         neuralDotsColors.push(c.r, c.g, c.b);
       }
     }
@@ -224,18 +224,18 @@ export default function DhwaniSphere({
       coreGroup.add(ring);
     });
 
-    // ── Center Deep Violet / Cyan Pinpoint Energy Flare ──
+    // ── Center Deep Purple / Blue Pinpoint Energy Flare ──
     const centerPointLight1 = new THREE.PointLight(PALETTE.electricPurple, 9.0, 4.5);
     centerPointLight1.position.set(0, 0, 0);
     coreGroup.add(centerPointLight1);
 
-    const centerPointLight2 = new THREE.PointLight(PALETTE.cyanAccents, 5.0, 3.5);
+    const centerPointLight2 = new THREE.PointLight(PALETTE.electricBlue, 5.0, 3.5);
     centerPointLight2.position.set(0.1, 0.1, 0.1);
     coreGroup.add(centerPointLight2);
 
     const flareGeo = new THREE.SphereGeometry(0.14, 20, 20);
     const flareMat = new THREE.MeshBasicMaterial({
-      color: PALETTE.magenta,
+      color: PALETTE.electricPurple,
       transparent: true,
       opacity: 0.95,
       blending: THREE.AdditiveBlending,
@@ -294,83 +294,84 @@ export default function DhwaniSphere({
       return geo;
     }
 
-    // Material 1: Dark Polished Chrome (Deep black/navy body with sharp specular reflections)
-    const darkChromeMat = new THREE.MeshPhysicalMaterial({
-      color: PALETTE.black,
-      emissive: PALETTE.deepIndigo,
-      emissiveIntensity: 0.16,
-      metalness: 0.98,
-      roughness: 0.04,
+    // Material 1: Electric Royal Purple Metallic Ribbon
+    const electricPurpleMat = new THREE.MeshPhysicalMaterial({
+      color: PALETTE.vividViolet,
+      emissive: PALETTE.electricPurple,
+      emissiveIntensity: 0.48,
+      metalness: 0.9,
+      roughness: 0.08,
       clearcoat: 1.0,
-      clearcoatRoughness: 0.015,
-      iridescence: 0.9,
-      iridescenceIOR: 1.85,
-      iridescenceThicknessRange: [100, 380],
+      clearcoatRoughness: 0.03,
       envMap: cubeRenderTarget.texture,
-      envMapIntensity: 4.8,
+      envMapIntensity: 2.8,
       side: THREE.DoubleSide,
     });
 
-    // Material 2: Smoked Cyberpunk Glass (Translucent dark violet glass)
-    const smokedGlassMat = new THREE.MeshPhysicalMaterial({
-      color: PALETTE.darkNavy,
-      emissive: PALETTE.violet,
-      emissiveIntensity: 0.22,
-      metalness: 0.2,
-      roughness: 0.025,
-      transmission: 0.72,
-      transparent: true,
-      opacity: 0.94,
-      ior: 1.62,
-      thickness: 1.4,
-      attenuationColor: new THREE.Color(PALETTE.violet),
-      attenuationDistance: 0.85,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.02,
-      envMap: cubeRenderTarget.texture,
-      envMapIntensity: 4.2,
-      side: THREE.DoubleSide,
-    });
-
-    // Material 3: Deep Indigo Reflective Metal with Blue Rim Sheen
-    const deepIndigoMat = new THREE.MeshPhysicalMaterial({
-      color: PALETTE.deepIndigo,
+    // Material 2: Electric Royal Blue Metallic Ribbon
+    const electricBlueMat = new THREE.MeshPhysicalMaterial({
+      color: PALETTE.royalBlue,
       emissive: PALETTE.electricBlue,
-      emissiveIntensity: 0.24,
-      metalness: 0.95,
-      roughness: 0.05,
+      emissiveIntensity: 0.50,
+      metalness: 0.9,
+      roughness: 0.08,
       clearcoat: 1.0,
-      clearcoatRoughness: 0.02,
-      iridescence: 0.92,
-      iridescenceIOR: 1.75,
-      iridescenceThicknessRange: [120, 420],
+      clearcoatRoughness: 0.03,
       envMap: cubeRenderTarget.texture,
-      envMapIntensity: 4.4,
+      envMapIntensity: 2.8,
       side: THREE.DoubleSide,
     });
 
-    // Configuration for the 10 interlocking aerodynamic bands
+    // Material 3: Deep Royal Violet Metallic Ribbon
+    const deepVioletMat = new THREE.MeshPhysicalMaterial({
+      color: PALETTE.deepViolet,
+      emissive: PALETTE.deepIndigo,
+      emissiveIntensity: 0.38,
+      metalness: 0.94,
+      roughness: 0.07,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.04,
+      envMap: cubeRenderTarget.texture,
+      envMapIntensity: 2.6,
+      side: THREE.DoubleSide,
+    });
+
+    // Material 4: Midnight Sapphire Blue Ribbon
+    const midnightBlueMat = new THREE.MeshPhysicalMaterial({
+      color: 0x050c26,
+      emissive: 0x1d4ed8,
+      emissiveIntensity: 0.30,
+      metalness: 0.95,
+      roughness: 0.06,
+      clearcoat: 0.85,
+      clearcoatRoughness: 0.04,
+      envMap: cubeRenderTarget.texture,
+      envMapIntensity: 2.8,
+      side: THREE.DoubleSide,
+    });
+
+    // Configuration for the 10 interlocking aerodynamic bands in rich Blue & Purple
     const bandConfigs = [
-      // 1. Prominent Foreground Armillary Gimbal Ring (Major visual anchor matching reference)
-      { r: 1.28, w: 0.27, t: 0.055, rot: [0.82, 0.42, -0.22], amp: 0, mat: darkChromeMat, group: "A" },
-      // 2. Interlocking Cross-Axis Smoked Glass Ring (Translucent overlap)
-      { r: 1.24, w: 0.23, t: 0.048, rot: [-0.65, -0.52, 0.85], amp: 0.06, mat: smokedGlassMat, group: "B" },
-      // 3. Steep Diagonal Dark Chrome Band (Frames top-right)
-      { r: 1.21, w: 0.22, t: 0.046, rot: [1.25, -0.68, 0.35], amp: 0, mat: deepIndigoMat, group: "A" },
-      // 4. Counter-Tilted Metallic Band (Weaves behind ribbon 1)
-      { r: 1.18, w: 0.20, t: 0.045, rot: [-0.28, 1.15, -0.88], amp: 0.05, mat: darkChromeMat, group: "B" },
-      // 5. Equatorial Wide Band (Anchors bottom-left to top-right)
-      { r: 1.30, w: 0.20, t: 0.044, rot: [0.35, -0.88, 1.28], amp: 0, mat: smokedGlassMat, group: "A" },
-      // 6. Deep Interior Framing Band (Wraps tightly around neural core)
-      { r: 1.14, w: 0.22, t: 0.048, rot: [-1.12, 0.24, -0.58], amp: 0.06, mat: darkChromeMat, group: "B" },
-      // 7. Middle Orbital Stabilizer Band
-      { r: 1.12, w: 0.24, t: 0.046, rot: [0.52, 1.22, 0.42], amp: 0, mat: deepIndigoMat, group: "A" },
-      // 8. Rear Dark Background Shield Band (Adds deep shadow occlusion)
-      { r: 1.15, w: 0.19, t: 0.042, rot: [-0.44, -1.05, -0.72], amp: 0.04, mat: darkChromeMat, group: "B" },
-      // 9. Flowing Fluid Wave Ribbon (Dynamic aerodynamic S-curve)
-      { r: 1.26, w: 0.16, t: 0.038, rot: [0.92, -0.32, 0.74], amp: 0.08, mat: smokedGlassMat, group: "A" },
-      // 10. Outer Framing Cyan Accent Band
-      { r: 1.22, w: 0.17, t: 0.040, rot: [-0.75, 0.65, -1.15], amp: 0.05, mat: deepIndigoMat, group: "B" },
+      // 1. Prominent Foreground Armillary Gimbal Ring (Electric Blue anchor)
+      { r: 1.28, w: 0.27, t: 0.055, rot: [0.82, 0.42, -0.22], amp: 0, mat: electricBlueMat, group: "A" },
+      // 2. Interlocking Cross-Axis Ring (Electric Purple)
+      { r: 1.24, w: 0.23, t: 0.048, rot: [-0.65, -0.52, 0.85], amp: 0.06, mat: electricPurpleMat, group: "B" },
+      // 3. Steep Diagonal Band (Electric Blue)
+      { r: 1.21, w: 0.22, t: 0.046, rot: [1.25, -0.68, 0.35], amp: 0, mat: electricBlueMat, group: "A" },
+      // 4. Counter-Tilted Deep Violet Band
+      { r: 1.18, w: 0.20, t: 0.045, rot: [-0.28, 1.15, -0.88], amp: 0.05, mat: deepVioletMat, group: "B" },
+      // 5. Equatorial Wide Band (Electric Purple)
+      { r: 1.30, w: 0.20, t: 0.044, rot: [0.35, -0.88, 1.28], amp: 0, mat: electricPurpleMat, group: "A" },
+      // 6. Deep Interior Band (Midnight Blue)
+      { r: 1.14, w: 0.22, t: 0.048, rot: [-1.12, 0.24, -0.58], amp: 0.06, mat: midnightBlueMat, group: "B" },
+      // 7. Middle Orbital Stabilizer Band (Electric Blue)
+      { r: 1.12, w: 0.24, t: 0.046, rot: [0.52, 1.22, 0.42], amp: 0, mat: electricBlueMat, group: "A" },
+      // 8. Rear Shadow Shield Band (Deep Violet)
+      { r: 1.15, w: 0.19, t: 0.042, rot: [-0.44, -1.05, -0.72], amp: 0.04, mat: deepVioletMat, group: "B" },
+      // 9. Flowing S-Curve Ribbon (Electric Purple)
+      { r: 1.26, w: 0.16, t: 0.038, rot: [0.92, -0.32, 0.74], amp: 0.08, mat: electricPurpleMat, group: "A" },
+      // 10. Outer Framing Band (Electric Blue)
+      { r: 1.22, w: 0.17, t: 0.040, rot: [-0.75, 0.65, -1.15], amp: 0.05, mat: electricBlueMat, group: "B" },
     ];
 
     const groupRibbonsA = new THREE.Group();
@@ -390,9 +391,9 @@ export default function DhwaniSphere({
     });
 
     // ── Glowing Neon Edge Lines for the Foreground Ribbon ──
-    // Lower/outer edge: Cyan glow
+    // Lower/outer edge: Electric Blue glow
     const edgePoints1: THREE.Vector3[] = [];
-    // Upper/inner edge: Purple glow
+    // Upper/inner edge: Electric Purple glow
     const edgePoints2: THREE.Vector3[] = [];
     for (let i = 0; i <= 64; i++) {
       const theta = (i / 64) * Math.PI * 2;
@@ -414,7 +415,7 @@ export default function DhwaniSphere({
     const edgeCurve1 = new THREE.CatmullRomCurve3(edgePoints1, true);
     const edgeGeo1 = new THREE.TubeGeometry(edgeCurve1, 64, 0.007, 8, true);
     const edgeMat1 = new THREE.MeshBasicMaterial({
-      color: PALETTE.cyanAccents,
+      color: PALETTE.electricBlue,
       transparent: true,
       opacity: 0.85,
     });
@@ -449,12 +450,12 @@ export default function DhwaniSphere({
     }
 
     const orbitalConfigs: OrbitalRingConfig[] = [
-      // Ring 1: Cyan Horizontal-Diagonal Orbit with 2 nodes
-      { radius: 1.58, color: PALETTE.cyanAccents, rot: [1.32, 0.22, -0.38], nodeCount: 2, speed: 0.6 },
-      // Ring 2: Electric Purple Steep Orbit with 2 nodes
-      { radius: 1.48, color: PALETTE.electricPurple, rot: [-0.55, 0.82, 0.64], nodeCount: 2, speed: -0.45 },
-      // Ring 3: Deep Electric Blue Outer Orbit with 1 node
-      { radius: 1.66, color: PALETTE.electricBlue, rot: [0.32, -1.12, 0.78], nodeCount: 1, speed: 0.35 },
+      // Ring 1: Electric Purple Steep Orbit with 2 nodes
+      { radius: 1.58, color: PALETTE.electricPurple, rot: [1.32, 0.22, -0.38], nodeCount: 2, speed: 0.6 },
+      // Ring 2: Electric Royal Blue Orbit with 2 nodes
+      { radius: 1.48, color: PALETTE.electricBlue, rot: [-0.55, 0.82, 0.64], nodeCount: 2, speed: -0.45 },
+      // Ring 3: Neon Cyan Accent Outer Orbit with 1 node
+      { radius: 1.66, color: PALETTE.neonCyan, rot: [0.32, -1.12, 0.78], nodeCount: 1, speed: 0.35 },
     ];
 
     const orbitalNodes: { mesh: THREE.Mesh; ringRadius: number; angle: number; speed: number; parentGroup: THREE.Group }[] = [];
@@ -469,7 +470,7 @@ export default function DhwaniSphere({
       const ringMat = new THREE.MeshBasicMaterial({
         color: cfg.color,
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.75,
         blending: THREE.AdditiveBlending,
       });
       const ringMesh = new THREE.Mesh(ringGeo, ringMat);
@@ -503,7 +504,7 @@ export default function DhwaniSphere({
 
     // ═════════════════════════════════════════════
     //  4. SUBTLE AMBIENT CYBER PARTICLES
-    //  A restrained constellation of tiny glowing dots (purple, blue, cyan)
+    //  A restrained constellation of tiny glowing dots in electric purple, blue, and cyan
     // ═════════════════════════════════════════════
     const particleCount = 55;
     const particleGeo = new THREE.BufferGeometry();
@@ -511,8 +512,8 @@ export default function DhwaniSphere({
     const particleColors = new Float32Array(particleCount * 3);
 
     const pColPurple = new THREE.Color(PALETTE.electricPurple);
-    const pColCyan = new THREE.Color(PALETTE.cyanAccents);
     const pColBlue = new THREE.Color(PALETTE.electricBlue);
+    const pColCyan = new THREE.Color(PALETTE.neonCyan);
 
     for (let i = 0; i < particleCount; i++) {
       const rad = 1.35 + Math.random() * 1.25;
@@ -524,7 +525,7 @@ export default function DhwaniSphere({
       particlePositions[i * 3 + 2] = rad * Math.sin(phi) * Math.sin(theta);
 
       const rand = Math.random();
-      const col = rand < 0.45 ? pColPurple : rand < 0.75 ? pColCyan : pColBlue;
+      const col = rand < 0.45 ? pColPurple : rand < 0.8 ? pColBlue : pColCyan;
       particleColors[i * 3] = col.r;
       particleColors[i * 3 + 1] = col.g;
       particleColors[i * 3 + 2] = col.b;
@@ -640,15 +641,14 @@ export default function DhwaniSphere({
       className={`relative flex items-center justify-center select-none ${className}`}
     >
       {/* 
-        Restrained Cyberpunk Ambient Glow:
-        Transition: black → deep purple → violet → black
-        Zero milky wash; pure dark contrast.
+        Restrained Cyberpunk Ambient Glow — Blue & Purple Theme:
+        Vivid purple and electric blue dual-tone atmospheric glow
       */}
-      <div className="absolute w-[80%] h-[80%] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(109,40,217,0.22)_0%,rgba(17,16,74,0.12)_45%,transparent_70%)] blur-[45px] pointer-events-none" />
-      <div className="absolute w-[60%] h-[60%] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(0,217,255,0.14)_0%,transparent_65%)] blur-[35px] pointer-events-none translate-x-6 -translate-y-4" />
+      <div className="absolute w-[80%] h-[80%] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.28)_0%,rgba(30,27,75,0.15)_45%,transparent_70%)] blur-[45px] pointer-events-none" />
+      <div className="absolute w-[60%] h-[60%] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(37,99,235,0.22)_0%,transparent_65%)] blur-[35px] pointer-events-none translate-x-6 -translate-y-4" />
 
-      {/* Ground bounce light reflection beneath the sphere (matching reference image) */}
-      <div className="absolute bottom-2 sm:bottom-4 w-[55%] h-5 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.32)_0%,rgba(109,40,217,0.1)_50%,transparent_75%)] blur-[18px] pointer-events-none" />
+      {/* Ground bounce light reflection beneath the sphere */}
+      <div className="absolute bottom-2 sm:bottom-4 w-[55%] h-5 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(124,58,237,0.35)_0%,rgba(37,99,235,0.2)_50%,transparent_75%)] blur-[18px] pointer-events-none" />
 
       {/* Transparent WebGL Canvas — 100% sharp 3D cyber-AI neural core */}
       <canvas
