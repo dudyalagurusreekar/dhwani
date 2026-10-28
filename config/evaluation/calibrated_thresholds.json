@@ -1,0 +1,41 @@
+{
+  "calibration_timestamp": "2026-10-24T20:41:22.932441+00:00",
+  "git": {
+    "commit_sha": "a45e40aa6fec462cc770325b41802f8629e4b1f7",
+    "branch": "feature/phase-1-inference-foundation"
+  },
+  "calibration_status": "UNCALIBRATED",
+  "source_predictions_file": "evaluation_results\\smoke_test\\predictions.jsonl",
+  "dataset_partition_used": "validation",
+  "sample_statistics": {
+    "total_samples": 5,
+    "bonafide_count": 3,
+    "spoof_count": 2,
+    "imbalance_ratio_spoof_to_bonafide": 0.667
+  },
+  "optimization_objective": "eer",
+  "recommended_threshold": 0.5,
+  "empirical_validation_threshold": 0.9266,
+  "status_note": "Insufficient labeled data (5 samples < 100). Production threshold kept unchanged at default 0.5000.",
+  "objective_explanation": "Equal Error Rate (EER) threshold where FAR (83.33%) \u2248 FRR (83.33%).",
+  "operating_points": {
+    "eer_threshold": 0.9266,
+    "eer_error_rate": 0.8333,
+    "min_cost_threshold": 0.2221,
+    "target_far_threshold": 0.9692
+  },
+  "performance_at_recommended_threshold": {
+    "threshold": 0.5,
+    "false_alarm_rate_far": 0.6667,
+    "miss_rate_frr": 0.0,
+    "confusion_matrix": {
+      "tp": 2,
+      "fp": 2,
+      "tn": 1,
+      "fn": 0
+    }
+  },
+  "uncertainty_warnings": [
+    "Small sample size (5 samples < 100). Insufficient real labeled data for production threshold calibration."
+  ]
+}

@@ -1,4 +1,89 @@
-﻿.venv/
+# ============================================================
+# Python Virtual Environments
+# ============================================================
+.venv/
+venv/
+ENV/
+env/
+*.env
+.env
+.env.local
+
+# ============================================================
+# Bytecode and Cache
+# ============================================================
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+models/**/.cache/
+ai/**/__pycache__/
+streaming/**/__pycache__/
+
+# ============================================================
+# Large Binary Model Files (>100MB blocked by GitHub)
+# ============================================================
+# Note: w2v2-aasist.onnx is ~1.26GB; download via scripts/download_models.py
+models/w2v2_aasist/*.onnx
+models/**/*.onnx
+*.onnx
+*.bin
+*.pt
+*.tar.gz
+*.zip
+
+# Allow lightweight tracked model weights (<50MB)
+!models/aasist/AASIST.pth
+!ai/aasist/models/weights/AASIST.pth
+!ai/aasist/models/weights/AASIST-L.pth
+!ai/aasist/official/models/weights/AASIST.pth
+!ai/aasist/official/models/weights/AASIST-L.pth
+
+# ============================================================
+# Datasets (ASVspoof raw archives & flac/wav evaluation sets)
+# ============================================================
+datasets/ASVspoof*
+datasets/**/*.flac
+datasets/**/*.wav
+data/asvspoof*
 member2/audio/
+
+# Keep sample / test wave files needed for quick verification
+!acoustic_test.wav
+!microphone_test.wav
+!real_speech.wav
+
+# ============================================================
+# Output and Temporary Audio Files
+# ============================================================
+evaluation_results/
+temp_*.wav
+output_*.wav
+*.tmp
+*.log
+
+# Allow smoke audio fixtures
+!tests/fixtures/audio_smoke/*.wav
+
+# ============================================================
+# Node.js & Frontend Artifacts
+# ============================================================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# ============================================================
+# IDE & System Files
+# ============================================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

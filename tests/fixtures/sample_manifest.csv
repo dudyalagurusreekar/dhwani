@@ -1,0 +1,6 @@
+audio_path,label,speaker_id,attack_type,subset
+sample_bonafide.wav,bonafide,SPK_001,-,dev
+sample_spoof.wav,spoof,SPK_002,SYNTH_CHIRP,dev
+sample_bonafide.wav,bonafide,SPK_001,-,eval
+sample_spoof.wav,spoof,SPK_002,SYNTH_CHIRP,eval
+sample_silence.wav,bonafide,SPK_003,-,dev

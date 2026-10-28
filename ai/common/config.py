@@ -1,0 +1,17 @@
+﻿SAMPLE_RATE = 16000
+
+WINDOW_SECONDS = 4.037
+
+ANALYSIS_INTERVAL_SECONDS = 1.0
+
+RISK_LEVELS = {
+    "LOW": (0.0, 0.39),
+    "SUSPICIOUS": (0.40, 0.69),
+    "HIGH": (0.70, 1.0),
+}
+
+MODEL_WEIGHTS = {
+    "W2V2-AASIST": 0.45,
+    "AASIST": 0.35,
+    "ACOUSTIC": 0.20,
+}
