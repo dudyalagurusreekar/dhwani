@@ -56,10 +56,14 @@ datasets/**/*.wav
 # ============================================================
 # Output and Temporary Audio Files
 # ============================================================
+evaluation_results/
 temp_*.wav
 output_*.wav
 *.tmp
 *.log
+
+# Allow smoke audio fixtures
+!tests/fixtures/audio_smoke/*.wav
 
 # ============================================================
 # IDE & System Files

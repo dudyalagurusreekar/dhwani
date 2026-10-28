@@ -43,6 +43,19 @@ class AttackAttributionEngine:
                 "attribution_reasons": List[str],
             }
         """
+        if risk_score is None:
+            return {
+                "primary_vector": "UNKNOWN",
+                "confidence": 0.0,
+                "vector_probabilities": {
+                    "BONA_FIDE": 0.0,
+                    "SYNTHETIC_TTS": 0.0,
+                    "VOICE_CONVERSION": 0.0,
+                    "PHYSICAL_REPLAY": 0.0,
+                },
+                "attribution_reasons": ["No operational detector scores available for attribution."],
+            }
+
         if risk_score < self.spoof_threshold:
             return {
                 "primary_vector": "BONA_FIDE",
@@ -58,7 +71,11 @@ class AttackAttributionEngine:
 
         # Extract features
         reasons = []
-        scores = {d.get("model"): float(d.get("raw_score", 0)) for d in detector_results}
+        scores = {
+            d.get("model"): float(d["raw_score"])
+            for d in detector_results
+            if d.get("model") and d.get("raw_score") is not None
+        }
 
         acoustic_meta = {}
         for d in detector_results:

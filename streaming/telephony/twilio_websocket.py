@@ -104,7 +104,7 @@ async def handle_twilio_media_stream(websocket: WebSocket):
                         continue
 
                     # Step 2: Multi-Model Detection (AASIST, AASIST-L, Acoustic, W2V2-AASIST)
-                    detector_resp = await detect_voice(window)
+                    detector_resp = await detect_voice(window, session_id=current_session.call_sid)
                     detector_results = detector_resp.get("detectors", [])
 
                     # Step 3: Risk Evaluation, Adaptive Fusion & Inter-Model Consensus

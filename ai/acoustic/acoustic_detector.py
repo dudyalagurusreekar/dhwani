@@ -32,7 +32,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from ai.common.detector_interface import BaseDetector, DetectorResult
+from ai.common.detector_interface import BaseDetector, DetectorResult, DetectorStatus
 
 
 class AcousticDetector(BaseDetector):
@@ -51,6 +51,11 @@ class AcousticDetector(BaseDetector):
         self.hop_length = 256         # 16 ms @ 16 kHz
         self.n_fft = 512
         self.window = np.hanning(self.frame_length).astype(np.float32)
+
+        self.status = DetectorStatus.READY
+        self.device = "cpu"
+        self.backend = "numpy"
+        self.error = None
 
     def extract_features(self, audio: np.ndarray) -> Dict[str, float]:
         """Extract multi-dimensional spectral and acoustic features."""
@@ -96,8 +101,13 @@ class AcousticDetector(BaseDetector):
 
         # 5. Cepstral representation (log filterbank kurtosis)
         log_spec = np.log(power_spec + 1e-9)
-        k_vals = scipy.stats.kurtosis(log_spec, axis=-1, fisher=True, nan_policy="omit")
-        kurtosis = float(np.nanmean(np.nan_to_num(k_vals, nan=0.0, posinf=10.0, neginf=-10.0)))
+        spec_var = np.var(log_spec, axis=-1)
+        valid_frames = spec_var > 1e-6
+        if np.any(valid_frames):
+            k_vals = scipy.stats.kurtosis(log_spec[valid_frames], axis=-1, fisher=True, nan_policy="omit")
+            kurtosis = float(np.nanmean(np.nan_to_num(k_vals, nan=0.0, posinf=10.0, neginf=-10.0)))
+        else:
+            kurtosis = 0.0
 
         return {
             "hf_ratio": hf_ratio,
@@ -117,69 +127,81 @@ class AcousticDetector(BaseDetector):
         """
         t_start = time.perf_counter()
 
-        audio = np.asarray(audio, dtype=np.float32)
-        if audio.ndim > 1:
-            audio = np.mean(audio, axis=1)
+        try:
+            audio = np.asarray(audio, dtype=np.float32)
+            if audio.ndim > 1:
+                audio = np.mean(audio, axis=1)
 
-        # Standardize window
-        if len(audio) > self.WINDOW_SAMPLES:
-            audio = audio[: self.WINDOW_SAMPLES]
-        elif len(audio) < self.WINDOW_SAMPLES:
-            audio = np.pad(audio, (0, self.WINDOW_SAMPLES - len(audio)))
+            # Standardize window
+            if len(audio) > self.WINDOW_SAMPLES:
+                audio = audio[: self.WINDOW_SAMPLES]
+            elif len(audio) < self.WINDOW_SAMPLES:
+                audio = np.pad(audio, (0, self.WINDOW_SAMPLES - len(audio)))
 
-        # Extract features
-        feats = self.extract_features(audio)
+            # Extract features
+            feats = self.extract_features(audio)
 
-        # Calibrated acoustic anomaly heuristic:
-        # Synthetic speech / vocoder signatures:
-        # - High frequency cutoff (rolloff < 3200 Hz or rolloff > 6800 Hz)
-        # - Excessively low or high HF ratio (typical human speech is 0.05 - 0.25)
-        # - Deprived spectral flux (< 1.5 indicates robotic phase consistency)
-        anomaly_score = 0.0
+            # Calibrated acoustic anomaly heuristic:
+            anomaly_score = 0.0
 
-        # HF ratio anomaly
-        if feats["hf_ratio"] < 0.03 or feats["hf_ratio"] > 0.35:
-            anomaly_score += 0.30
-        elif feats["hf_ratio"] < 0.06 or feats["hf_ratio"] > 0.28:
-            anomaly_score += 0.15
+            # HF ratio anomaly
+            if feats["hf_ratio"] < 0.03 or feats["hf_ratio"] > 0.35:
+                anomaly_score += 0.30
+            elif feats["hf_ratio"] < 0.06 or feats["hf_ratio"] > 0.28:
+                anomaly_score += 0.15
 
-        # Rolloff anomaly
-        if feats["rolloff_85"] < 2800 or feats["rolloff_85"] > 7000:
-            anomaly_score += 0.35
-        elif feats["rolloff_85"] < 3200 or feats["rolloff_85"] > 6500:
-            anomaly_score += 0.15
+            # Rolloff anomaly
+            if feats["rolloff_85"] < 2800 or feats["rolloff_85"] > 7000:
+                anomaly_score += 0.35
+            elif feats["rolloff_85"] < 3200 or feats["rolloff_85"] > 6500:
+                anomaly_score += 0.15
 
-        # Flux anomaly
-        if feats["spectral_flux"] < 1.2:
-            anomaly_score += 0.25
-        elif feats["spectral_flux"] < 2.0:
-            anomaly_score += 0.10
+            # Flux anomaly
+            if feats["spectral_flux"] < 1.2:
+                anomaly_score += 0.25
+            elif feats["spectral_flux"] < 2.0:
+                anomaly_score += 0.10
 
-        # Kurtosis anomaly
-        if feats["cepstral_kurtosis"] > 8.0 or feats["cepstral_kurtosis"] < -0.5:
-            anomaly_score += 0.20
+            # Kurtosis anomaly
+            if feats["cepstral_kurtosis"] > 8.0 or feats["cepstral_kurtosis"] < -0.5:
+                anomaly_score += 0.20
 
-        # Sigmoid calibration to [0.0, 1.0]
-        # Base logit centered around 0.5 anomaly
-        logit = (anomaly_score - 0.45) * 4.0
-        spoof_score = float(1.0 / (1.0 + math.exp(-logit)))
-        spoof_score = max(0.01, min(0.99, spoof_score))
+            # Sigmoid calibration to [0.0, 1.0]
+            logit = (anomaly_score - 0.45) * 4.0
+            spoof_score = float(1.0 / (1.0 + math.exp(-logit)))
+            spoof_score = max(0.01, min(0.99, spoof_score))
 
-        latency_ms = (time.perf_counter() - t_start) * 1000.0
+            latency_ms = (time.perf_counter() - t_start) * 1000.0
 
-        standardized = DetectorResult(
-            model=self.model_name,
-            raw_score=spoof_score,
-            latency_ms=round(latency_ms, 2),
-            score_direction="higher_is_more_spoof",
-            metadata={
-                "provider": "CPU_Acoustic",
-                "hf_ratio": round(feats["hf_ratio"], 4),
-                "rolloff_85_hz": round(feats["rolloff_85"], 1),
-                "spectral_flux": round(feats["spectral_flux"], 4),
-                "spectral_centroid_hz": round(feats["spectral_centroid"], 1),
-                "cepstral_kurtosis": round(feats["cepstral_kurtosis"], 3),
-                "is_real": True,
-            },
-        )
-        return standardized.to_dict()
+            standardized = DetectorResult(
+                model=self.model_name,
+                raw_score=spoof_score,
+                latency_ms=round(latency_ms, 2),
+                score_direction="higher_is_more_spoof",
+                status="SUCCESS",
+                device=self.device,
+                backend=self.backend,
+                metadata={
+                    "provider": "CPU_Acoustic",
+                    "hf_ratio": round(feats["hf_ratio"], 4),
+                    "rolloff_85_hz": round(feats["rolloff_85"], 1),
+                    "spectral_flux": round(feats["spectral_flux"], 4),
+                    "spectral_centroid_hz": round(feats["spectral_centroid"], 1),
+                    "cepstral_kurtosis": round(feats["cepstral_kurtosis"], 3),
+                    "is_real": True,
+                },
+            )
+            return standardized.to_dict()
+        except Exception as exc:
+            latency_ms = (time.perf_counter() - t_start) * 1000.0
+            res = DetectorResult(
+                model=self.model_name,
+                raw_score=None,
+                latency_ms=round(latency_ms, 2),
+                score_direction="higher_is_more_spoof",
+                status="FAILED",
+                device=self.device,
+                backend=self.backend,
+                error=str(exc),
+            )
+            return res.to_dict()

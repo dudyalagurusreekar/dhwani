@@ -187,6 +187,9 @@ class YouTubeAudioSource(AudioSource):
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             self.temp_audio_path = Path(tmp.name)
 
+        # Strict canonical URL reconstruction: prevents bypasses via alternative query parameters or schemes
+        canonical_url = f"https://www.youtube.com/watch?v={self.video_id}"
+
         ydl_opts = {
             "format": "bestaudio/best",
             "outtmpl": str(self.temp_audio_path.with_suffix("")),
@@ -198,17 +201,20 @@ class YouTubeAudioSource(AudioSource):
                 }
             ],
             "postprocessor_args": ["-ar", "16000", "-ac", "1"],
+            "socket_timeout": 15,
+            "max_filesize": 50 * 1024 * 1024,
+            "playlistend": 1,
             "quiet": True,
             "no_warnings": True,
         }
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([self.url])
+                ydl.download([canonical_url])
 
             actual_wav = self.temp_audio_path.with_suffix(".wav")
             if not actual_wav.exists():
-                raise FileNotFoundError(f"Failed to extract audio from YouTube URL: {self.url}")
+                raise FileNotFoundError(f"Failed to extract audio from YouTube URL: {canonical_url}")
 
             audio, sr = sf.read(str(actual_wav), dtype="float32")
             if audio.ndim > 1:

@@ -1,15 +1,14 @@
 """
 System Health & Hardware Telemetry Endpoint for Dhwani / EchoShield AI
-Returns live GPU (RTX 5060), VRAM, active models, and backend readiness.
+Returns live GPU / CPU status, VRAM, dynamic detector statuses, and backend readiness.
 """
 
 from datetime import datetime, timezone
-import os
 import ctypes
 import os
 import torch
 from fastapi import APIRouter
-from backend.services.detector import _AASIST_MODEL, _AASIST_L_MODEL, _ACOUSTIC_MODEL, _W2V2_MODEL, _SPEAKER_ENGINE
+from backend.services import detector
 
 router = APIRouter(tags=["System"])
 
@@ -52,6 +51,7 @@ def _get_system_memory() -> dict:
 async def get_system_status():
     """
     Detailed hardware and model health telemetry for the Dhwani dashboard.
+    Dynamically queries live detector states and device availability.
     """
     cuda_available = torch.cuda.is_available()
     gpu_info = {}
@@ -71,23 +71,29 @@ async def get_system_status():
         except Exception:
             gpu_info = {"device_name": "NVIDIA GPU", "status": "active"}
     else:
-        gpu_info = {"status": "cpu_fallback"}
+        gpu_info = {"status": "cpu_fallback", "device_name": "CPU"}
 
     # Process and system RAM
     ram_info = _get_system_memory()
 
+    # Dynamic detector querying via live service registry
+    live_detectors = detector.get_active_detectors()
+    detector_health = detector.get_detector_health()
 
-    active_detectors = []
-    if _W2V2_MODEL:
-        active_detectors.append({"model": "W2V2-AASIST", "type": "Self-Supervised Wav2Vec2 + GAT", "device": "CUDAExecutionProvider", "status": "ONLINE"})
-    if _AASIST_MODEL:
-        active_detectors.append({"model": "AASIST", "type": "Raw Waveform SincNet + GAT", "device": "CUDAExecutionProvider", "status": "ONLINE"})
-    if _AASIST_L_MODEL:
-        active_detectors.append({"model": "AASIST-L", "type": "Lightweight GAT", "device": "CUDAExecutionProvider", "status": "ONLINE"})
-    if _ACOUSTIC_MODEL:
-        active_detectors.append({"model": "ACOUSTIC", "type": "Handcrafted Spectral/LFCC", "device": "CPU", "status": "ONLINE"})
-    if _SPEAKER_ENGINE:
-        active_detectors.append({"model": "ECAPA-TDNN", "type": "Deep Speaker Identity Verification", "device": "CUDAExecutionProvider", "status": "ONLINE"})
+    # Formatted for dashboard compatibility while reporting truthful states
+    model_entries = []
+    for d in live_detectors:
+        model_name = d.get("model", "UNKNOWN")
+        is_online = d.get("is_available", False)
+        status_label = "ONLINE" if is_online else d.get("status", "UNAVAILABLE")
+        model_entries.append({
+            "model": model_name,
+            "status": status_label,
+            "device": d.get("device", "cpu"),
+            "backend": d.get("backend", "unknown"),
+            "is_available": is_online,
+            "error": d.get("error"),
+        })
 
     return {
         "service": "dhwani-backend",
@@ -95,7 +101,8 @@ async def get_system_status():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "gpu": gpu_info,
         "system": ram_info,
-        "active_models": active_detectors,
+        "active_models": model_entries,
+        "detector_health": detector_health,
         "pipeline": {
             "sample_rate": 16000,
             "window_size": 64600,

@@ -116,29 +116,45 @@ def main():
     print(f"  [PASS] Acoustic Detector:     Median: {ac_stats['median_ms']} ms | Range: [{ac_stats['min_ms']}-{ac_stats['max_ms']}] ms")
 
     # 4. AASIST-L
-    aasist_l = AASISTLAdapter()
-    al_stats = benchmark_function(lambda: aasist_l.predict_audio(sample_window))
-    results_table.append(("AASIST-L", f"{aasist_l.provider} (766 KB)", f"{al_stats['median_ms']} ms", "PASS"))
-    print(f"  [PASS] AASIST-L (GAT):        Median: {al_stats['median_ms']} ms | Range: [{al_stats['min_ms']}-{al_stats['max_ms']}] ms")
+    aasist_l = AASISTLAdapter(strict=False)
+    if aasist_l.is_available:
+        al_stats = benchmark_function(lambda: aasist_l.predict_audio(sample_window))
+        results_table.append(("AASIST-L", f"{aasist_l.device} ({aasist_l.backend})", f"{al_stats['median_ms']} ms", "PASS"))
+        print(f"  [PASS] AASIST-L (GAT):        Median: {al_stats['median_ms']} ms | Range: [{al_stats['min_ms']}-{al_stats['max_ms']}] ms")
+    else:
+        results_table.append(("AASIST-L", "Weights missing", "N/A", "SKIPPED"))
+        print(f"  [SKIP] AASIST-L (GAT):        Skipped ({aasist_l.error})")
 
     # 5. AASIST
-    aasist = AASISTAdapter()
-    aa_stats = benchmark_function(lambda: aasist.predict_audio(sample_window))
-    results_table.append(("AASIST", f"{aasist.provider} (1.54 MB)", f"{aa_stats['median_ms']} ms", "PASS"))
-    print(f"  [PASS] AASIST (Raw GAT):      Median: {aa_stats['median_ms']} ms | Range: [{aa_stats['min_ms']}-{aa_stats['max_ms']}] ms")
+    aasist = AASISTAdapter(strict=False)
+    if aasist.is_available:
+        aa_stats = benchmark_function(lambda: aasist.predict_audio(sample_window))
+        results_table.append(("AASIST", f"{aasist.device} ({aasist.backend})", f"{aa_stats['median_ms']} ms", "PASS"))
+        print(f"  [PASS] AASIST (Raw GAT):      Median: {aa_stats['median_ms']} ms | Range: [{aa_stats['min_ms']}-{aa_stats['max_ms']}] ms")
+    else:
+        results_table.append(("AASIST", "Weights missing", "N/A", "SKIPPED"))
+        print(f"  [SKIP] AASIST (Raw GAT):      Skipped ({aasist.error})")
 
     # 6. W2V2-AASIST
-    w2v2 = W2V2AASISTAdapter()
-    w_provider = w2v2.detector.session.get_providers()[0]
-    w_stats = benchmark_function(lambda: w2v2.predict_audio(sample_window))
-    results_table.append(("W2V2-AASIST", f"{w_provider} (1.18 GB)", f"{w_stats['median_ms']} ms", "PASS"))
-    print(f"  [PASS] W2V2-AASIST (SSL):     Median: {w_stats['median_ms']} ms | Range: [{w_stats['min_ms']}-{w_stats['max_ms']}] ms")
+    w2v2 = W2V2AASISTAdapter(strict=False)
+    if w2v2.is_available:
+        w_provider = getattr(w2v2, "device", "unknown")
+        w_stats = benchmark_function(lambda: w2v2.predict_audio(sample_window))
+        results_table.append(("W2V2-AASIST", f"{w_provider} (1.18 GB)", f"{w_stats['median_ms']} ms", "PASS"))
+        print(f"  [PASS] W2V2-AASIST (SSL):     Median: {w_stats['median_ms']} ms | Range: [{w_stats['min_ms']}-{w_stats['max_ms']}] ms")
+    else:
+        results_table.append(("W2V2-AASIST", "ONNX (~1.26 GB missing)", "N/A", "SKIPPED"))
+        print("  [SKIP] W2V2-AASIST (SSL):     Skipped (weights not found at models/w2v2_aasist/w2v2-aasist.onnx)")
 
     # 7. ECAPA-TDNN Speaker Consistency
-    spk = SpeakerConsistencyEngine()
-    s_stats = benchmark_function(lambda: spk.extract_embedding(sample_window))
-    results_table.append(("ECAPA-TDNN", f"{spk.provider} (24.8 MB)", f"{s_stats['median_ms']} ms", "PASS"))
-    print(f"  [PASS] ECAPA-TDNN (Speaker):  Median: {s_stats['median_ms']} ms | Range: [{s_stats['min_ms']}-{s_stats['max_ms']}] ms")
+    spk = SpeakerConsistencyEngine(strict=False)
+    if spk.is_available:
+        s_stats = benchmark_function(lambda: spk.extract_embedding(sample_window))
+        results_table.append(("ECAPA-TDNN", f"{spk.provider} (24.8 MB)", f"{s_stats['median_ms']} ms", "PASS"))
+        print(f"  [PASS] ECAPA-TDNN (Speaker):  Median: {s_stats['median_ms']} ms | Range: [{s_stats['min_ms']}-{s_stats['max_ms']}] ms")
+    else:
+        results_table.append(("ECAPA-TDNN", "ONNX (24.8 MB missing)", "N/A", "SKIPPED"))
+        print("  [SKIP] ECAPA-TDNN (Speaker):  Skipped (weights not found at models/speaker/ecapa512.onnx)")
 
     post_alloc, post_res = get_gpu_vram()
     print(f"  Active VRAM after all models: Allocated: {post_alloc} MB | Reserved: {post_res} MB")
@@ -171,21 +187,24 @@ def main():
     # SECTION 3: SPEAKER CONSISTENCY VERIFICATION (MEMBER 2)
     # -------------------------------------------------------------
     print("[3/8] Testing Speaker Consistency & Impersonation Engine...")
-    spk.reset_session()
-    w1 = audio_data[:32000]
-    w2 = audio_data[32000:64000]
-    diff_voice = (np.random.randn(32000) * 0.1).astype(np.float32)
+    if spk.is_available:
+        spk.reset_session()
+        w1 = audio_data[:32000]
+        w2 = audio_data[32000:64000]
+        diff_voice = (np.random.randn(32000) * 0.1).astype(np.float32)
 
-    enroll_res = spk.evaluate_consistency(w1)
-    assert enroll_res["status"] == "ENROLLED", "Enrollment failed"
-    print(f"  [PASS] Session Enrollment:         Enrolled 192-dim baseline anchor")
+        enroll_res = spk.evaluate_consistency(w1)
+        assert enroll_res["status"] == "ENROLLED", "Enrollment failed"
+        print("  [PASS] Session Enrollment:         Enrolled 192-dim baseline anchor")
 
-    same_res = spk.evaluate_consistency(w2)
-    print(f"  [PASS] Same Speaker Utterance:     Similarity: {same_res['cosine_similarity']:.3f} (status: {same_res['status']})")
+        same_res = spk.evaluate_consistency(w2)
+        print(f"  [PASS] Same Speaker Utterance:     Similarity: {same_res['cosine_similarity']:.3f} (status: {same_res['status']})")
 
-    diff_res = spk.evaluate_consistency(diff_voice)
-    assert not diff_res["speaker_consistent"], "Different voice not flagged"
-    print(f"  [PASS] Foreign / Mismatched Voice: Similarity: {diff_res['cosine_similarity']:.3f} (status: {diff_res['status']})")
+        diff_res = spk.evaluate_consistency(diff_voice)
+        assert not diff_res["speaker_consistent"], "Different voice not flagged"
+        print(f"  [PASS] Foreign / Mismatched Voice: Similarity: {diff_res['cosine_similarity']:.3f} (status: {diff_res['status']})")
+    else:
+        print("  [SKIP] Speaker Consistency Engine: Skipped (ECAPA-TDNN artifact ecapa512.onnx missing)")
     print()
 
     # -------------------------------------------------------------
@@ -197,10 +216,10 @@ def main():
     attrib_engine = AttackAttributionEngine()
 
     dummy_results = [
-        {"model": "AASIST", "raw_score": 0.95, "latency_ms": 20.0},
-        {"model": "AASIST-L", "raw_score": 0.98, "latency_ms": 18.0},
-        {"model": "ACOUSTIC", "raw_score": 0.75, "latency_ms": 4.0},
-        {"model": "W2V2-AASIST", "raw_score": 0.92, "latency_ms": 36.0},
+        {"model": "AASIST", "raw_score": 0.95, "status": "SUCCESS", "latency_ms": 20.0},
+        {"model": "AASIST-L", "raw_score": 0.98, "status": "SUCCESS", "latency_ms": 18.0},
+        {"model": "ACOUSTIC", "raw_score": 0.75, "status": "SUCCESS", "latency_ms": 4.0},
+        {"model": "W2V2-AASIST", "raw_score": 0.92, "status": "SUCCESS", "latency_ms": 36.0},
     ]
     fused = fusion_engine.fuse(dummy_results, {"quality_level": "GOOD", "estimated_snr": 25.0})
     assert fused["fused_score"] > 0.85, "Fusion failed"
@@ -218,9 +237,11 @@ def main():
     # SECTION 5: TIERED INFERENCE BENCHMARK
     # -------------------------------------------------------------
     print("[5/8] Testing Tiered Inference Acceleration vs Full Ensemble...")
+    t1_detectors = [d for d in [aasist, aasist_l, ac] if d.is_available]
+    t2_detectors = [d for d in [w2v2] if d.is_available]
     t_mgr = TieredInferenceManager(
-        tier1_detectors=[aasist, aasist_l, ac],
-        tier2_detectors=[w2v2],
+        tier1_detectors=t1_detectors,
+        tier2_detectors=t2_detectors,
         escalation_threshold=0.25,
         enabled=True,
     )
@@ -301,7 +322,8 @@ def main():
     print("-" * 70)
     for name, stack, lat, status in results_table:
         print(f"{name:<24} {stack:<26} {lat:<16} {status}")
-    print(f"{'Full Ensemble Pipeline':<24} {'Combined (CPU+CUDA)':<26} {med_proc:.2f} ms{'':<8} PASS")
+    comb_provider = "Combined (CPU+CUDA)" if torch.cuda.is_available() else "Combined (CPU)"
+    print(f"{'Full Ensemble Pipeline':<24} {comb_provider:<26} {med_proc:.2f} ms{'':<8} PASS")
     print(f"{'Streaming WebSocket':<24} {'FastAPI / WS PCM16':<26} {ws_lat:.2f} ms{'':<8} PASS")
     print("=" * 70)
 

@@ -65,7 +65,9 @@ class TieredInferenceManager:
         for detector in self.tier1_detectors:
             res = detector.predict_audio(audio, sample_rate)
             all_results.append(res)
-            tier1_scores.append(float(res.get("raw_score", 0.0)))
+            score = res.get("raw_score")
+            if score is not None:
+                tier1_scores.append(float(score))
 
         tier1_avg = float(np.mean(tier1_scores)) if tier1_scores else 0.0
 

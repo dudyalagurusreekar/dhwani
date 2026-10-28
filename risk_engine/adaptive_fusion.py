@@ -52,9 +52,28 @@ class AdaptiveFusionEngine:
                 "confidence": float,
             }
         """
-        if not detector_results:
+        import math
+
+        def _is_valid(det: Any) -> bool:
+            if not isinstance(det, dict):
+                return False
+            status = str(det.get("status", "SUCCESS")).upper() if det.get("status") is not None else "SUCCESS"
+            if status in ("FAILED", "SKIPPED", "UNAVAILABLE", "ERROR"):
+                return False
+            raw = det.get("raw_score")
+            if raw is None:
+                return False
+            try:
+                val = float(raw)
+                return not (math.isnan(val) or math.isinf(val))
+            except (ValueError, TypeError):
+                return False
+
+        valid_results = [det for det in detector_results if _is_valid(det)]
+
+        if not valid_results:
             return {
-                "fused_score": 0.0,
+                "fused_score": None,
                 "active_models": [],
                 "effective_weights": {},
                 "confidence": 0.0,
@@ -73,7 +92,7 @@ class AdaptiveFusionEngine:
         raw_weights: Dict[str, float] = {}
         scores: Dict[str, float] = {}
 
-        for det in detector_results:
+        for det in valid_results:
             model_name = det.get("model", "UNKNOWN")
             score = float(det.get("raw_score", 0.0))
             scores[model_name] = score

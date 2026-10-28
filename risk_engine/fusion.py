@@ -1,4 +1,4 @@
-﻿from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List
 
 from ai.common.config import MODEL_WEIGHTS
 from risk_engine.normalizer import normalize_detector_result
@@ -51,10 +51,14 @@ class FusionEngine:
             metadata
         """
 
-        results: List[Dict[str, Any]] = list(detector_results)
+        results: List[Dict[str, Any]] = [
+            r for r in detector_results
+            if r.get("raw_score") is not None
+            and r.get("status") not in ("FAILED", "SKIPPED", "UNAVAILABLE")
+        ]
 
         if not results:
-            raise ValueError("No detector results provided.")
+            raise ValueError("No valid detector results provided for fusion.")
 
         normalized_results = [
             normalize_detector_result(result)

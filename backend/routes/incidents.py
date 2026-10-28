@@ -12,18 +12,21 @@ import uuid
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+import threading
+from security import get_global_pipeline
 from security.audit_chain import AuditHashChain
 from security.schemas import EventType
 from backend.websocket.dashboard import broadcast_event
 
 router = APIRouter(prefix="/incidents", tags=["Security Incidents & Evidence"])
 
-# Ledger persisted to data/audit_ledger.jsonl
+# Ledger persisted to data/audit_ledger.jsonl via unified pipeline
 LEDGER_PATH = Path("data") / "audit_ledger.jsonl"
 LEDGER_PATH.parent.mkdir(parents=True, exist_ok=True)
-audit_chain = AuditHashChain(persistence_file=LEDGER_PATH)
+audit_chain = get_global_pipeline(persistence_file=str(LEDGER_PATH)).chain
 
-# In-memory incident registry
+# Thread-safe in-memory incident registry
+INCIDENT_LOCK = threading.RLock()
 INCIDENT_RECORDS: Dict[str, Dict[str, Any]] = {}
 
 
@@ -41,7 +44,8 @@ async def list_incidents():
     # Verify cryptographic integrity of the chain
     chain_report = audit_chain.verify_integrity()
 
-    incidents_list = list(INCIDENT_RECORDS.values())
+    with INCIDENT_LOCK:
+        incidents_list = list(INCIDENT_RECORDS.values())
     incidents_list.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
     return {
@@ -73,9 +77,10 @@ async def get_incident(incident_id: str):
     """
     Retrieve single incident evidence details and cryptographic proof.
     """
-    if incident_id not in INCIDENT_RECORDS:
-        raise HTTPException(status_code=404, detail="Incident not found")
-    return INCIDENT_RECORDS[incident_id]
+    with INCIDENT_LOCK:
+        if incident_id not in INCIDENT_RECORDS:
+            raise HTTPException(status_code=404, detail="Incident not found")
+        return dict(INCIDENT_RECORDS[incident_id])
 
 
 @router.post("/verification/{incident_id}")
@@ -83,10 +88,11 @@ async def record_verification_result(incident_id: str, req: VerificationRequest)
     """
     Submit secondary step-up verification result (e.g. caller passed honeypot or out-of-band auth).
     """
-    if incident_id not in INCIDENT_RECORDS:
-        raise HTTPException(status_code=404, detail="Incident not found")
+    with INCIDENT_LOCK:
+        if incident_id not in INCIDENT_RECORDS:
+            raise HTTPException(status_code=404, detail="Incident not found")
+        incident = INCIDENT_RECORDS[incident_id]
 
-    incident = INCIDENT_RECORDS[incident_id]
     incident["verification_status"] = req.status
     incident["verifier"] = req.verifier_id
     incident["verification_notes"] = req.notes
@@ -164,5 +170,6 @@ def record_security_incident(
         "current_hash": event.chain_hash,
     }
 
-    INCIDENT_RECORDS[incident_id] = record
+    with INCIDENT_LOCK:
+        INCIDENT_RECORDS[incident_id] = record
     return record

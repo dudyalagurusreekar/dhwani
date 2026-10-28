@@ -42,19 +42,51 @@ class ModelAgreementEngine:
                 "is_concordant": bool,
             }
         """
-        if not detector_results or len(detector_results) < 2:
+        import math
+
+        def _is_valid(det: Any) -> bool:
+            if not isinstance(det, dict):
+                return False
+            status = str(det.get("status", "SUCCESS")).upper() if det.get("status") is not None else "SUCCESS"
+            if status in ("FAILED", "SKIPPED", "UNAVAILABLE", "ERROR"):
+                return False
+            raw = det.get("raw_score")
+            if raw is None:
+                return False
+            try:
+                val = float(raw)
+                return not (math.isnan(val) or math.isinf(val))
+            except (ValueError, TypeError):
+                return False
+
+        valid_results = [det for det in detector_results if _is_valid(det)]
+
+        if not valid_results:
             return {
-                "consensus_level": "UNANIMOUS" if detector_results else "NONE",
-                "consensus_ratio": 1.0 if detector_results else 0.0,
-                "spoof_votes": 1 if detector_results and detector_results[0].get("raw_score", 0) >= self.decision_threshold else 0,
-                "bonafide_votes": 1 if detector_results and detector_results[0].get("raw_score", 0) < self.decision_threshold else 0,
+                "consensus_level": "NONE",
+                "consensus_ratio": 0.0,
+                "spoof_votes": 0,
+                "bonafide_votes": 0,
+                "pairwise_agreement": {},
+                "explanation": "No operational detector scores available for consensus.",
+                "is_concordant": False,
+            }
+
+        if len(valid_results) == 1:
+            score = float(valid_results[0].get("raw_score", 0.0))
+            is_spoof = score >= self.decision_threshold
+            return {
+                "consensus_level": "UNANIMOUS",
+                "consensus_ratio": 1.0,
+                "spoof_votes": 1 if is_spoof else 0,
+                "bonafide_votes": 0 if is_spoof else 1,
                 "pairwise_agreement": {},
                 "explanation": "Single detector active; consensus trivial.",
                 "is_concordant": True,
             }
 
         votes = {}
-        for det in detector_results:
+        for det in valid_results:
             name = det.get("model", "UNKNOWN")
             score = float(det.get("raw_score", 0.0))
             is_spoof = score >= self.decision_threshold

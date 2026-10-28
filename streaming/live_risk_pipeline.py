@@ -389,10 +389,14 @@ class LiveRiskPipeline:
         print()
         print("DETECTORS:")
         for d in detectors:
-            print(f"  {d['model']:<12}: spoof={d['raw_score']:.3f} | {d['latency_ms']:.1f}ms")
+            if d.get("raw_score") is not None:
+                print(f"  {d['model']:<12}: spoof={d['raw_score']:.3f} | {d['latency_ms']:.1f}ms")
+            else:
+                print(f"  {d['model']:<12}: status={d.get('status', 'SKIPPED')} | {d.get('error', 'unavailable')}")
 
         print()
-        print(f"FUSION & CONSENSUS: Fused={fusion['fused_score']:.3f} | {agreement['consensus_level']} ({agreement['explanation']})")
+        fused_str = f"{fusion['fused_score']:.3f}" if fusion.get("fused_score") is not None else "N/A"
+        print(f"FUSION & CONSENSUS: Fused={fused_str} | {agreement['consensus_level']} ({agreement['explanation']})")
         print(f"ATTRIBUTION:        {attrib['primary_vector']} ({attrib['confidence']*100:.1f}%)")
         print(f"ACTIVE MITIGATION:  {action['action']} [{action['severity']}] - {action['policy_reason']}")
         print(f"FINAL RISK SCORE:   {event['risk_score']:.3f} ({event['risk_score_percent']:.1f}%) -> [{event['risk_level']}]")

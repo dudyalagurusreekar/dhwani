@@ -10,6 +10,7 @@ import json
 import logging
 from typing import Any, Dict, Set
 from fastapi import WebSocket, WebSocketDisconnect
+from security.auth import get_accepted_subprotocol
 
 logger = logging.getLogger("dhwani.dashboard")
 
@@ -22,7 +23,8 @@ class DashboardConnectionManager:
         self._lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket):
-        await websocket.accept()
+        subprotocol = get_accepted_subprotocol(websocket)
+        await websocket.accept(subprotocol=subprotocol)
         async with self._lock:
             self.active_connections.add(websocket)
         logger.info(f"Dashboard client connected. Active clients: {len(self.active_connections)}")

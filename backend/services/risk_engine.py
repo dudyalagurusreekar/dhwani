@@ -28,7 +28,7 @@ _temporal_engine = RiskEngine()
 
 
 def calculate_risk(
-    fake_probability: float,
+    fake_probability: Optional[float],
     detector_results: Optional[List[Dict[str, Any]]] = None,
     audio_quality: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
@@ -41,6 +41,22 @@ def calculate_risk(
     - recommendation: "CONTINUE" | "VERIFY_CALLER" | "TRIGGER_VOICE_HONEYPOT" | "TERMINATE_SESSION"
     Plus enriched telemetry.
     """
+    if fake_probability is None:
+        return {
+            "risk_score": 0,
+            "status": "INDETERMINATE",
+            "risk_level": "INDETERMINATE",
+            "alert": "No operational detector scores available for analysis.",
+            "recommendation": "VERIFY_CALLER",
+            "attack_vector": "UNKNOWN",
+            "consensus_level": "NONE",
+            "consensus_explanation": "No operational detector scores available.",
+            "policy_action": "ALLOW",
+            "policy_severity": "WARNING",
+            "policy_reason": "Inference foundation unavailable.",
+            "reasons": ["No operational detectors available"],
+        }
+
     fake_probability = max(0.0, min(1.0, float(fake_probability)))
     score = int(round(fake_probability * 100))
 

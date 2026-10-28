@@ -62,3 +62,11 @@ class StreamManager:
             "speech":
                 speech
         }
+
+    def remove_session(self, session_id: str) -> None:
+        """Purge and clean up audio buffer for a disconnected session."""
+        self.buffers.pop(session_id, None)
+
+    def has_session(self, session_id: str) -> bool:
+        """Check if active buffer exists for session."""
+        return session_id in self.buffers

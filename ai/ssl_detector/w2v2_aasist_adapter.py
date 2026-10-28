@@ -1,10 +1,9 @@
-﻿from pathlib import Path
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
 import math
 
-from ai.common.detector_interface import DetectorResult
+from ai.common.detector_interface import BaseDetector, DetectorResult, DetectorStatus
 from ai.ssl_detector.w2v2_aasist_detector import W2V2AASISTDetector
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -16,23 +15,45 @@ MODEL_PATH = (
 )
 
 
-class W2V2AASISTAdapter:
+class W2V2AASISTAdapter(BaseDetector):
     """
-    Adapter that converts the existing W2V2-AASIST detector
-    output into EchoShield's common detector format.
+    Adapter that converts the W2V2-AASIST self-supervised detector
+    output into Dhwani's standardized BaseDetector format.
     """
 
-    MODEL_NAME = "W2V2-AASIST"
+    model_name = "W2V2-AASIST"
+    MODEL_NAME = "W2V2-AASIST"  # Backward compatibility
 
-    def __init__(self, model_path: str | Path = MODEL_PATH):
-        model_path = Path(model_path)
+    def __init__(self, model_path: Optional[Union[str, Path]] = None, strict: bool = False):
+        super().__init__()
+        self.model_path = Path(model_path) if model_path else MODEL_PATH
+        self.detector: Optional[W2V2AASISTDetector] = None
+        self.device = "unknown"
+        self.backend = "onnx"
+        self.status = DetectorStatus.INITIALIZING
+        self.error = None
 
-        if not model_path.exists():
-            raise FileNotFoundError(
-                f"W2V2-AASIST model not found: {model_path}"
+        if not self.model_path.exists():
+            self.status = DetectorStatus.UNAVAILABLE
+            self.error = (
+                f"W2V2-AASIST model not found at {self.model_path}. "
+                "Expected: w2v2-aasist.onnx (~1.26 GB) from Hugging Face "
+                "'SpeechAntiSpoofingBenchmarks/W2V2-AASIST'. "
+                "Download via: python scripts/download_models.py"
             )
+            if strict:
+                raise FileNotFoundError(self.error)
+            return
 
-        self.detector = W2V2AASISTDetector(str(model_path))
+        try:
+            self.detector = W2V2AASISTDetector(str(self.model_path))
+            self.device = self.detector.session.get_providers()[0]
+            self.status = DetectorStatus.READY
+        except Exception as e:
+            self.status = DetectorStatus.FAILED
+            self.error = str(e)
+            if strict:
+                raise
 
     @staticmethod
     def _sigmoid(x: float) -> float:
@@ -44,48 +65,75 @@ class W2V2AASISTAdapter:
         audio,
         sample_rate: int = 16000,
     ) -> Dict[str, Any]:
+        if self.status != DetectorStatus.READY or self.detector is None:
+            exec_status = "SKIPPED" if self.status == DetectorStatus.UNAVAILABLE else "FAILED"
+            res = DetectorResult(
+                model=self.model_name,
+                raw_score=None,
+                latency_ms=0.0,
+                score_direction="higher_is_more_spoof",
+                status=exec_status,
+                device=self.device,
+                backend=self.backend,
+                error=self.error or "W2V2-AASIST detector is not operational",
+                metadata={"status": self.status.value},
+            )
+            return res.to_dict()
 
-        result = self.detector.predict_audio(
-            audio,
-            sample_rate=sample_rate,
-        )
+        try:
+            result = self.detector.predict_audio(
+                audio,
+                sample_rate=sample_rate,
+            )
 
-        bona_fide_logit = float(result["bona_fide_logit"])
-        spoof_logit = float(result["spoof_logit"])
+            bona_fide_logit = float(result["bona_fide_logit"])
+            spoof_logit = float(result["spoof_logit"])
 
-        # W2V2-AASIST:
-        # higher bona-fide evidence = more genuine.
-        #
-        # Convert bona-fide evidence into a normalized
-        # spoof-oriented score for EchoShield.
-        bona_fide_probability = self._sigmoid(bona_fide_logit)
-        spoof_score = 1.0 - bona_fide_probability
+            bona_fide_probability = self._sigmoid(bona_fide_logit)
+            spoof_score = 1.0 - bona_fide_probability
 
-        standardized = DetectorResult(
-            model=self.MODEL_NAME,
-            raw_score=spoof_score,
-            latency_ms=float(result["latency_ms"]),
-            score_direction="higher_is_more_spoof",
-            metadata={
-                "bona_fide_logit": bona_fide_logit,
-                "spoof_logit": spoof_logit,
-                "bona_fide_probability": bona_fide_probability,
-                "sample_rate": result["sample_rate"],
-                "window_samples": result["window_samples"],
-                "window_seconds": result["window_seconds"],
-            },
-        )
+            if math.isnan(spoof_score) or math.isinf(spoof_score):
+                spoof_score = 0.5
 
-        return standardized.to_dict()
+            standardized = DetectorResult(
+                model=self.model_name,
+                raw_score=round(spoof_score, 4),
+                latency_ms=round(float(result["latency_ms"]), 2),
+                score_direction="higher_is_more_spoof",
+                status="SUCCESS",
+                device=self.device,
+                backend=self.backend,
+                metadata={
+                    "bona_fide_logit": round(bona_fide_logit, 4),
+                    "spoof_logit": round(spoof_logit, 4),
+                    "bona_fide_probability": round(bona_fide_probability, 4),
+                    "sample_rate": result["sample_rate"],
+                    "window_samples": result["window_samples"],
+                    "window_seconds": result["window_seconds"],
+                    "is_real": True,
+                },
+            )
+
+            return standardized.to_dict()
+
+        except Exception as e:
+            res = DetectorResult(
+                model=self.model_name,
+                raw_score=None,
+                latency_ms=0.0,
+                score_direction="higher_is_more_spoof",
+                status="FAILED",
+                device=self.device,
+                backend=self.backend,
+                error=str(e),
+                metadata={},
+            )
+            return res.to_dict()
 
 
 if __name__ == "__main__":
-    print("W2V2-AASIST ADAPTER: IMPORT TEST")
-
-    print("Model path:")
-    print(MODEL_PATH)
-
     adapter = W2V2AASISTAdapter()
-
-    print("Model:", adapter.MODEL_NAME)
-    print("Adapter initialized successfully.")
+    print("Model:", adapter.model_name)
+    print("Status:", adapter.status.value)
+    if adapter.error:
+        print("Note:", adapter.error)

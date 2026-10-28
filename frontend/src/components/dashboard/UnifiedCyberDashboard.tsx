@@ -117,8 +117,12 @@ export default function UnifiedCyberDashboard() {
     const connectWs = () => {
       try {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const host = window.location.hostname || "localhost";
-        ws = new WebSocket(`${protocol}//${host}:8000/ws/dashboard`);
+        const wsUrl =
+          process.env.NEXT_PUBLIC_WS_URL ||
+          (window.location.port === "3000"
+            ? `${protocol}//${window.location.hostname || "localhost"}:8000/ws/dashboard`
+            : `${protocol}//${window.location.host}/ws/dashboard`);
+        ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
           setWsConnected(true);
@@ -167,12 +171,11 @@ export default function UnifiedCyberDashboard() {
   // Poll System Status and Incidents
   const fetchStatusAndIncidents = async () => {
     try {
-      const host = window.location.hostname || "localhost";
-      const sysRes = await fetch(`http://${host}:8000/api/system/status`);
+      const sysRes = await fetch("/api/system/status");
       if (sysRes.ok) {
         setSystemStatus(await sysRes.json());
       }
-      const incRes = await fetch(`http://${host}:8000/api/incidents`);
+      const incRes = await fetch("/api/incidents");
       if (incRes.ok) {
         const incData = await incRes.json();
         setIncidents(incData.incidents || []);
@@ -206,8 +209,7 @@ export default function UnifiedCyberDashboard() {
     formData.append("file", uploadFile);
 
     try {
-      const host = window.location.hostname || "localhost";
-      const res = await fetch(`http://${host}:8000/api/analyze/upload`, {
+      const res = await fetch("/api/analyze/upload", {
         method: "POST",
         body: formData,
       });
@@ -237,8 +239,7 @@ export default function UnifiedCyberDashboard() {
     setAnalysisReport(null);
 
     try {
-      const host = window.location.hostname || "localhost";
-      const res = await fetch(`http://${host}:8000/api/analyze/youtube`, {
+      const res = await fetch("/api/analyze/youtube", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: youtubeUrl }),
