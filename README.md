@@ -265,18 +265,32 @@ DHWANI_API_KEY=your-secure-internal-api-key-here
 
 ### 3. Running Locally
 
-#### Terminal 1 — FastAPI Backend:
+#### Option A: One-Click Launch (Windows)
+We provide automated launchers that verify dependencies, auto-generate local `.env` and `frontend/.env.local` configurations, check port availability, and launch both services together:
+
+- **From PowerShell:**
+  ```powershell
+  .\run_all.ps1
+  ```
+- **From Command Prompt (CMD):**
+  ```cmd
+  run_all.bat
+  ```
+
+#### Option B: Manual Multi-Terminal Launch
+
+**Terminal 1 — FastAPI Backend:**
 ```bash
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-#### Terminal 2 — Next.js Dashboard & BFF:
+**Terminal 2 — Next.js Dashboard & BFF:**
 ```bash
 cd frontend
 npm run dev
 ```
 
-Visit the dashboard at `http://localhost:3000`.
+Visit the dashboard at `http://localhost:3000`. Interactive OpenAPI documentation is accessible at `http://localhost:8000/docs`.
 
 ---
 

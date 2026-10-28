@@ -109,6 +109,12 @@ export default function UnifiedCyberDashboard() {
   const [analysisReport, setAnalysisReport] = useState<any>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
+  // Helper to obtain client API key from localStorage
+  const getClientApiKey = () => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("dhwani_api_key") || "";
+  };
+
   // Connect to Backend WebSocket
   useEffect(() => {
     let ws: WebSocket | null = null;
@@ -117,12 +123,15 @@ export default function UnifiedCyberDashboard() {
     const connectWs = () => {
       try {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const host = window.location.hostname || "localhost";
+        // Connect to port 8000 (FastAPI) or custom env URL
         const wsUrl =
           process.env.NEXT_PUBLIC_WS_URL ||
-          (window.location.port === "3000"
-            ? `${protocol}//${window.location.hostname || "localhost"}:8000/ws/dashboard`
-            : `${protocol}//${window.location.host}/ws/dashboard`);
-        ws = new WebSocket(wsUrl);
+          `${protocol}//${host}:8000/ws/dashboard`;
+
+        const clientKey = getClientApiKey();
+        const subprotocols = clientKey ? ["dhwani-auth", clientKey] : undefined;
+        ws = subprotocols ? new WebSocket(wsUrl, subprotocols) : new WebSocket(wsUrl);
 
         ws.onopen = () => {
           setWsConnected(true);
@@ -171,11 +180,17 @@ export default function UnifiedCyberDashboard() {
   // Poll System Status and Incidents
   const fetchStatusAndIncidents = async () => {
     try {
-      const sysRes = await fetch("/api/system/status");
+      const clientKey = getClientApiKey();
+      const headers: Record<string, string> = {};
+      if (clientKey) {
+        headers["X-API-Key"] = clientKey;
+      }
+
+      const sysRes = await fetch("/api/system/status", { headers });
       if (sysRes.ok) {
         setSystemStatus(await sysRes.json());
       }
-      const incRes = await fetch("/api/incidents");
+      const incRes = await fetch("/api/incidents", { headers });
       if (incRes.ok) {
         const incData = await incRes.json();
         setIncidents(incData.incidents || []);
@@ -208,9 +223,16 @@ export default function UnifiedCyberDashboard() {
     const formData = new FormData();
     formData.append("file", uploadFile);
 
+    const clientKey = getClientApiKey();
+    const headers: Record<string, string> = {};
+    if (clientKey) {
+      headers["X-API-Key"] = clientKey;
+    }
+
     try {
       const res = await fetch("/api/analyze/upload", {
         method: "POST",
+        headers,
         body: formData,
       });
 
@@ -238,10 +260,16 @@ export default function UnifiedCyberDashboard() {
     setAnalysisError(null);
     setAnalysisReport(null);
 
+    const clientKey = getClientApiKey();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (clientKey) {
+      headers["X-API-Key"] = clientKey;
+    }
+
     try {
       const res = await fetch("/api/analyze/youtube", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ url: youtubeUrl }),
       });
 

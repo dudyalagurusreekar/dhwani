@@ -42,7 +42,10 @@ app = FastAPI(
 )
 
 # Environment-configurable CORS allowlist without wildcard credentials violation
-raw_origins = os.getenv("ALLOWED_ORIGINS", os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"))
+raw_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001")
+)
 allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
 # Per W3C CORS spec: wildcard '*' cannot be combined with credentials
 allow_credentials = False if (len(allowed_origins) == 1 and allowed_origins[0] == "*") else True

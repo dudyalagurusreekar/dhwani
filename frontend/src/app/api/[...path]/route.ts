@@ -114,7 +114,7 @@ async function handleProxy(
         const originUrl = new URL(origin);
         if (originUrl.host !== host) {
           // Check if origin is explicitly allowed
-          const rawAllowed = process.env.ALLOWED_ORIGINS || "";
+          const rawAllowed = process.env.ALLOWED_ORIGINS || "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001";
           const allowedList = rawAllowed.split(",").map((o) => o.trim()).filter(Boolean);
           if (!allowedList.includes(origin)) {
             return NextResponse.json(
